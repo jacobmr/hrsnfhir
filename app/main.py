@@ -59,6 +59,22 @@ def verify_api_key(credentials: HTTPAuthorizationCredentials = Security(security
 # Initialize FHIR processor
 fhir_processor = FHIRBundleProcessor()
 
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {
+        "message": "HRSN FHIR Processing Server",
+        "version": "1.0.0",
+        "status": "running",
+        "docs": "/docs",
+        "health": "/health",
+        "members_page": "/static/members.html"
+    }
+
+# Serve static files
+from fastapi.staticfiles import StaticFiles
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint"""
@@ -77,6 +93,17 @@ async def health_check():
         database=db_status,
         version="1.0.0"
     )
+
+@app.get("/members/count")
+async def get_members_count():
+    """Get count of members (no auth required for testing)"""
+    try:
+        from .models import Member
+        db = next(get_db())
+        count = db.query(Member).count()
+        return {"members_count": count, "status": "success"}
+    except Exception as e:
+        return {"members_count": 0, "status": "error", "message": str(e)}
 
 @app.post("/fhir/Bundle", response_model=BundleResponse)
 async def receive_fhir_bundle(
