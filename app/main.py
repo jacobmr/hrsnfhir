@@ -105,6 +105,106 @@ async def get_members_count():
     except Exception as e:
         return {"members_count": 0, "status": "error", "message": str(e)}
 
+@app.get("/members")
+async def list_members(
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """Get list of all members"""
+    from .models import Member
+    from .schemas import MemberSummary
+    from datetime import date
+    
+    members = db.query(Member).all()
+    
+    def calculate_age(birth_date):
+        if not birth_date:
+            return None
+        today = date.today()
+        return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+    
+    member_list = []
+    for member in members:
+        zip_code = ""
+        if member.zip_code:
+            zip_code = member.zip_code
+        elif member.address:
+            # Try to extract zip from address string
+            import re
+            zip_match = re.search(r'\b\d{5}(?:-\d{4})?\b', member.address)
+            if zip_match:
+                zip_code = zip_match.group()
+        
+        member_list.append({
+            "id": member.id,
+            "name": f"{member.first_name} {member.last_name}".strip(),
+            "age": calculate_age(member.date_of_birth),
+            "zip_code": zip_code
+        })
+    
+    return {"members": member_list}
+
+@app.get("/members/{member_id}")
+async def get_member_detail(
+    member_id: int,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """Get detailed member information with assessments"""
+    from .models import Member, Screening
+    from datetime import date
+    
+    member = db.query(Member).filter(Member.id == member_id).first()
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    
+    def calculate_age(birth_date):
+        if not birth_date:
+            return None
+        today = date.today()
+        return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+    
+    # Get all screenings for this member
+    screenings = db.query(Screening).filter(Screening.member_id == member_id).all()
+    
+    zip_code = ""
+    if member.zip_code:
+        zip_code = member.zip_code
+    elif member.address:
+        import re
+        zip_match = re.search(r'\b\d{5}(?:-\d{4})?\b', member.address)
+        if zip_match:
+            zip_code = zip_match.group()
+    
+    assessments = []
+    for screening in screenings:
+        assessments.append({
+            "id": screening.id,
+            "screening_date": screening.screening_date.isoformat() if screening.screening_date else None,
+            "total_safety_score": screening.total_safety_score,
+            "questions_answered": screening.questions_answered,
+            "positive_screens": screening.positive_screens,
+            "high_risk": screening.total_safety_score >= 11 if screening.total_safety_score else False
+        })
+    
+    return {
+        "member": {
+            "id": member.id,
+            "name": f"{member.first_name} {member.last_name}".strip(),
+            "first_name": member.first_name,
+            "last_name": member.last_name,
+            "age": calculate_age(member.date_of_birth),
+            "date_of_birth": member.date_of_birth.isoformat() if member.date_of_birth else None,
+            "gender": member.gender,
+            "address": member.address,
+            "zip_code": zip_code,
+            "phone": member.phone,
+            "mrn": member.mrn
+        },
+        "assessments": assessments,
+        "assessment_count": len(assessments)
+    }
+
 @app.post("/fhir/Bundle", response_model=BundleResponse)
 async def receive_fhir_bundle(
     bundle: Dict[str, Any],

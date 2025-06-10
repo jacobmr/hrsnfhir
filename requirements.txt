@@ -1,3 +1,13 @@
 # Core FastAPI and server dependencies
 fastapi
 uvicorn[standard]
+
+# Database dependencies
+sqlalchemy
+psycopg2-binary
+alembic
+
+# Additional dependencies for FHIR processing
+pydantic
+python-dateutil
+python-multipart
