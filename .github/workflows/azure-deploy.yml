@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_WEBAPP_NAME: hrsn-fhir-production    # Replace with your app name
+  AZURE_WEBAPP_NAME: hrsn-fhir-jmr-2024    # Your actual app name
   PYTHON_VERSION: '3.11'
 
 jobs:
