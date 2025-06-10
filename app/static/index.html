@@ -235,12 +235,38 @@
             border-radius: 4px;
             font-size: 0.9em;
         }
+        .navigation {
+            background: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .navigation a {
+            color: #667eea;
+            text-decoration: none;
+            margin-right: 20px;
+            font-weight: 500;
+        }
+        .navigation a:hover {
+            text-decoration: underline;
+        }
+        .navigation a.active {
+            color: #764ba2;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>HRSN FHIR Bundle Processor</h1>
         <p>Upload and process FHIR bundles for Health-Related Social Needs screening</p>
+    </div>
+
+    <div class="navigation">
+        <a href="/" class="active">🏠 Home</a>
+        <a href="/members">👥 Members</a>
+        <a href="/analytics/dashboard">📊 Analytics</a>
     </div>
 
     <div class="container">

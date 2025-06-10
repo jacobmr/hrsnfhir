@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Member Details - HRSN FHIR System</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f7fa;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+        }
+        .navigation {
+            background: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .navigation a {
+            color: #667eea;
+            text-decoration: none;
+            margin-right: 20px;
+            font-weight: 500;
+        }
+        .navigation a:hover {
+            text-decoration: underline;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .member-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .member-info h2 {
+            margin: 0 0 15px 0;
+            color: #333;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        .info-value {
+            color: #333;
+            font-size: 1.1em;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 2em;
+        }
+        .stat-card p {
+            margin: 0;
+            opacity: 0.9;
+        }
+        .assessments-section {
+            margin-top: 30px;
+        }
+        .section-title {
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .assessment-card {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+        .assessment-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .assessment-date {
+            color: #666;
+            font-size: 0.9em;
+        }
+        .assessment-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 500;
+        }
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-incomplete {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .response-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        .response-item {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+        .response-item.positive {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+        .question {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+        .answer {
+            color: #666;
+            font-size: 1em;
+        }
+        .category-tag {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7em;
+            margin-top: 5px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .error {
+            background-color: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .no-data {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 id="member-name">👤 Member Details</h1>
+        <p>Health-Related Social Needs (HRSN) Assessment History</p>
+    </div>
+
+    <div class="navigation">
+        <a href="/">🏠 Home</a>
+        <a href="/members">👥 Members</a>
+        <a href="/analytics/dashboard">📊 Analytics</a>
+    </div>
+
+    <div id="loading" class="loading">
+        <p>Loading member details...</p>
+    </div>
+
+    <div id="error" class="error" style="display: none;">
+        <p>Error loading member details. Please try again.</p>
+    </div>
+
+    <div id="member-content" style="display: none;">
+        <div class="container">
+            <div class="member-info">
+                <h2>Member Information</h2>
+                <div class="info-grid" id="member-info-grid">
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3 id="total-screenings">0</h3>
+                    <p>Total Screenings</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="total-assessments">0</h3>
+                    <p>Eligibility Assessments</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="total-referrals">0</h3>
+                    <p>Service Referrals</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="container assessments-section">
+            <h2 class="section-title">🔍 Screening History</h2>
+            <div id="screenings-list">
+            </div>
+        </div>
+
+        <div class="container assessments-section" id="eligibility-section" style="display: none;">
+            <h2 class="section-title">✅ Eligibility Assessments</h2>
+            <div id="eligibility-list">
+            </div>
+        </div>
+
+        <div class="container assessments-section" id="referrals-section" style="display: none;">
+            <h2 class="section-title">🔗 Service Referrals</h2>
+            <div id="referrals-list">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let memberData = null;
+
+        // Load member details on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const memberId = getMemberIdFromUrl();
+            if (memberId) {
+                loadMemberDetails(memberId);
+            } else {
+                showError('No member ID provided');
+            }
+        });
+
+        function getMemberIdFromUrl() {
+            const path = window.location.pathname;
+            const parts = path.split('/');
+            return parts[parts.length - 1];
+        }
+
+        async function loadMemberDetails(memberId) {
+            try {
+                const response = await fetch(`/members/${memberId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${getApiKey()}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                memberData = await response.json();
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('member-content').style.display = 'block';
+                
+                displayMemberDetails();
+                
+            } catch (error) {
+                console.error('Error loading member details:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+            }
+        }
+
+        function displayMemberDetails() {
+            const member = memberData.member;
+            const assessments = memberData.assessments;
+            const summary = memberData.summary;
+
+            // Update page title
+            document.getElementById('member-name').textContent = `👤 ${member.full_name || 'Unknown Member'}`;
+            document.title = `${member.full_name || 'Member'} - HRSN System`;
+
+            // Display member info
+            displayMemberInfo(member);
+
+            // Update stats
+            document.getElementById('total-screenings').textContent = summary.total_screenings;
+            document.getElementById('total-assessments').textContent = summary.total_eligibility_assessments;
+            document.getElementById('total-referrals').textContent = summary.total_referrals;
+
+            // Display assessments
+            displayScreenings(assessments.screenings);
+            
+            if (summary.total_eligibility_assessments > 0) {
+                document.getElementById('eligibility-section').style.display = 'block';
+                displayEligibilityAssessments(assessments.eligibility_assessments);
+            }
+
+            if (summary.total_referrals > 0) {
+                document.getElementById('referrals-section').style.display = 'block';
+                displayReferrals(assessments.referrals);
+            }
+        }
+
+        function displayMemberInfo(member) {
+            const grid = document.getElementById('member-info-grid');
+            grid.innerHTML = '';
+
+            const fields = [
+                { label: 'Full Name', value: member.full_name || 'N/A' },
+                { label: 'Age', value: member.age || 'N/A' },
+                { label: 'Gender', value: member.gender || 'N/A' },
+                { label: 'Date of Birth', value: member.date_of_birth ? new Date(member.date_of_birth).toLocaleDateString() : 'N/A' },
+                { label: 'MRN', value: member.mrn || 'N/A' },
+                { label: 'Address', value: member.address_line1 || 'N/A' },
+                { label: 'City', value: member.city || 'N/A' },
+                { label: 'State', value: member.state || 'N/A' },
+                { label: 'Zip Code', value: member.zip_code || 'N/A' },
+                { label: 'Member Since', value: member.created_at ? new Date(member.created_at).toLocaleDateString() : 'N/A' }
+            ];
+
+            fields.forEach(field => {
+                const item = document.createElement('div');
+                item.className = 'info-item';
+                item.innerHTML = `
+                    <div class="info-label">${field.label}</div>
+                    <div class="info-value">${field.value}</div>
+                `;
+                grid.appendChild(item);
+            });
+        }
+
+        function displayScreenings(screenings) {
+            const container = document.getElementById('screenings-list');
+            
+            if (!screenings || screenings.length === 0) {
+                container.innerHTML = '<div class="no-data">No screening data available</div>';
+                return;
+            }
+
+            container.innerHTML = '';
+            
+            screenings.forEach(screening => {
+                const card = document.createElement('div');
+                card.className = 'assessment-card';
+                
+                const completedClass = screening.screening_complete ? 'status-completed' : 'status-incomplete';
+                const completedText = screening.screening_complete ? 'Completed' : 'Incomplete';
+                
+                card.innerHTML = `
+                    <div class="assessment-header">
+                        <div>
+                            <strong>Screening Date: ${new Date(screening.screening_date).toLocaleDateString()}</strong>
+                            <div class="assessment-date">Safety Score: ${screening.total_safety_score || 'N/A'} | Positive Screens: ${screening.positive_screens_count}</div>
+                        </div>
+                        <span class="assessment-status ${completedClass}">${completedText}</span>
+                    </div>
+                    <div class="response-grid" id="responses-${screening.id}"></div>
+                `;
+                
+                container.appendChild(card);
+
+                // Display responses
+                const responsesGrid = document.getElementById(`responses-${screening.id}`);
+                screening.responses.forEach(response => {
+                    const responseItem = document.createElement('div');
+                    responseItem.className = `response-item ${response.positive_screen ? 'positive' : ''}`;
+                    
+                    responseItem.innerHTML = `
+                        <div class="question">${response.question_text}</div>
+                        <div class="answer">${response.answer_text || response.data_absent_reason || 'No answer'}</div>
+                        ${response.sdoh_category ? `<span class="category-tag">${response.sdoh_category}</span>` : ''}
+                    `;
+                    
+                    responsesGrid.appendChild(responseItem);
+                });
+            });
+        }
+
+        function displayEligibilityAssessments(assessments) {
+            const container = document.getElementById('eligibility-list');
+            
+            if (!assessments || assessments.length === 0) {
+                container.innerHTML = '<div class="no-data">No eligibility assessments available</div>';
+                return;
+            }
+
+            container.innerHTML = '';
+            
+            assessments.forEach(assessment => {
+                const card = document.createElement('div');
+                card.className = 'assessment-card';
+                
+                card.innerHTML = `
+                    <div class="assessment-header">
+                        <div>
+                            <strong>Assessment Date: ${new Date(assessment.assessment_date).toLocaleDateString()}</strong>
+                        </div>
+                        <span class="assessment-status status-completed">${assessment.eligibility_status || 'N/A'}</span>
+                    </div>
+                    <p><strong>Enhanced Services Eligible:</strong> ${assessment.enhanced_services_eligible ? 'Yes' : 'No'}</p>
+                    <p><strong>Assessment Complete:</strong> ${assessment.assessment_complete ? 'Yes' : 'No'}</p>
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        function displayReferrals(referrals) {
+            const container = document.getElementById('referrals-list');
+            
+            if (!referrals || referrals.length === 0) {
+                container.innerHTML = '<div class="no-data">No service referrals available</div>';
+                return;
+            }
+
+            container.innerHTML = '';
+            
+            referrals.forEach(referral => {
+                const card = document.createElement('div');
+                card.className = 'assessment-card';
+                
+                card.innerHTML = `
+                    <div class="assessment-header">
+                        <div>
+                            <strong>Referral Date: ${new Date(referral.referral_date).toLocaleDateString()}</strong>
+                            <div class="assessment-date">Service: ${referral.service_category || 'N/A'}</div>
+                        </div>
+                        <span class="assessment-status status-completed">${referral.referral_status || 'N/A'}</span>
+                    </div>
+                    ${referral.referring_organization ? `<p><strong>Referring Organization:</strong> ${referral.referring_organization.name}</p>` : ''}
+                    ${referral.receiving_organization ? `<p><strong>Receiving Organization:</strong> ${referral.receiving_organization.name}</p>` : ''}
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error').querySelector('p').textContent = message;
+        }
+
+        function getApiKey() {
+            // For development - in production this should be properly secured
+            return 'your-secret-api-key-here';
+        }
+    </script>
+</body>
+</html>

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from typing import Dict, Any, List, Optional
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, date
 import uuid
 
 from .database import get_db, engine
@@ -14,6 +14,13 @@ from .models import Base
 from .fhir_processor import FHIRBundleProcessor
 from .schemas import BundleResponse, HealthResponse, BundleProcessingStatus
 from .config import settings
+import sys
+import os
+
+# Use production settings if in Azure
+if 'WEBSITE_HOSTNAME' in os.environ:
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+    from app_config import settings
 
 # Configure logging
 logging.basicConfig(
@@ -39,11 +46,15 @@ app = FastAPI(
 )
 
 # CORS middleware
+allowed_origins = ["*"]  # Default for development
+if hasattr(settings, 'ALLOWED_ORIGINS'):
+    allowed_origins = settings.ALLOWED_ORIGINS
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -181,6 +192,109 @@ async def get_member_referrals(
     from .analytics import get_member_referrals
     referrals = get_member_referrals(db, member_id)
     return {"member_id": member_id, "referrals": referrals}
+
+def calculate_age(birth_date: datetime) -> Optional[int]:
+    """Calculate age from birth date"""
+    if not birth_date:
+        return None
+    
+    today = date.today()
+    birth_date_only = birth_date.date() if isinstance(birth_date, datetime) else birth_date
+    
+    age = today.year - birth_date_only.year - (
+        (today.month, today.day) < (birth_date_only.month, birth_date_only.day)
+    )
+    return age
+
+@app.get("/members")
+async def get_members_list(
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """Get list of all members with basic info for members page"""
+    from .models import Member
+    
+    members = db.query(Member).all()
+    
+    members_list = []
+    for member in members:
+        age = calculate_age(member.date_of_birth) if member.date_of_birth else None
+        
+        members_list.append({
+            "id": str(member.id),
+            "fhir_id": member.fhir_id,
+            "full_name": f"{member.first_name or ''} {member.last_name or ''}".strip(),
+            "first_name": member.first_name,
+            "last_name": member.last_name,
+            "age": age,
+            "zip_code": member.zip_code,
+            "date_of_birth": member.date_of_birth.isoformat() if member.date_of_birth else None,
+            "created_at": member.created_at.isoformat() if member.created_at else None
+        })
+    
+    # Sort by last name, then first name
+    members_list.sort(key=lambda x: (x["last_name"] or "", x["first_name"] or ""))
+    
+    return {
+        "members": members_list,
+        "total_count": len(members_list)
+    }
+
+@app.get("/members/{member_id}")
+async def get_member_detail(
+    member_id: str,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """Get detailed information for a specific member including all assessments"""
+    from .models import Member
+    from .analytics import get_member_screenings, get_member_eligibility_assessments, get_member_referrals
+    
+    # Find member by either UUID or FHIR ID
+    member = db.query(Member).filter(
+        (Member.id == member_id) | (Member.fhir_id == member_id)
+    ).first()
+    
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    
+    # Get age
+    age = calculate_age(member.date_of_birth) if member.date_of_birth else None
+    
+    # Get all assessments
+    screenings = get_member_screenings(db, member.fhir_id)
+    eligibility_assessments = get_member_eligibility_assessments(db, member.fhir_id)
+    referrals = get_member_referrals(db, member.fhir_id)
+    
+    return {
+        "member": {
+            "id": str(member.id),
+            "fhir_id": member.fhir_id,
+            "mrn": member.mrn,
+            "full_name": f"{member.first_name or ''} {member.last_name or ''}".strip(),
+            "first_name": member.first_name,
+            "last_name": member.last_name,
+            "age": age,
+            "date_of_birth": member.date_of_birth.isoformat() if member.date_of_birth else None,
+            "gender": member.gender,
+            "address_line1": member.address_line1,
+            "city": member.city,
+            "state": member.state,
+            "zip_code": member.zip_code,
+            "created_at": member.created_at.isoformat() if member.created_at else None
+        },
+        "assessments": {
+            "screenings": screenings,
+            "eligibility_assessments": eligibility_assessments,
+            "referrals": referrals
+        },
+        "summary": {
+            "total_screenings": len(screenings),
+            "total_eligibility_assessments": len(eligibility_assessments),
+            "total_referrals": len(referrals),
+            "latest_screening_date": screenings[0].screening_date.isoformat() if screenings else None
+        }
+    }
 
 @app.get("/analytics/dashboard")
 async def get_dashboard_analytics(

@@ -1,0 +1,90 @@
+name: Deploy to Azure App Service
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: hrsn-fhir-production    # Replace with your app name
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Create and start virtual environment
+      run: |
+        python -m venv venv
+        source venv/bin/activate
+    
+    - name: Install dependencies
+      run: |
+        source venv/bin/activate
+        python -m pip install --upgrade pip
+        pip install -r requirements-production.txt
+    
+    - name: Create deployment package
+      run: |
+        # Copy production requirements as main requirements.txt
+        cp requirements-production.txt requirements.txt
+        
+        # Create logs directory
+        mkdir -p logs
+        
+        # Remove development files
+        rm -f requirements-production.txt
+        rm -rf .git
+        rm -rf __pycache__
+        rm -rf .pytest_cache
+        find . -name "*.pyc" -delete
+        find . -name "*.pyo" -delete
+        find . -name "__pycache__" -type d -exec rm -rf {} +
+    
+    - name: Upload artifact for deployment job
+      uses: actions/upload-artifact@v3
+      with:
+        name: python-app
+        path: |
+          .
+          !venv/
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: 'Production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+
+    steps:
+    - name: Download artifact from build job
+      uses: actions/download-artifact@v3
+      with:
+        name: python-app
+        path: .
+
+    - name: Deploy to Azure Web App
+      id: deploy-to-webapp
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
+        package: .
+
+    - name: Test deployment
+      run: |
+        # Wait for deployment to complete
+        sleep 30
+        
+        # Test health endpoint
+        curl -f https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health || exit 1
+        
+        echo "Deployment successful!"

@@ -35,6 +35,18 @@ async def root():
     with open("app/static/index.html", "r") as f:
         return f.read()
 
+@app.get("/members", response_class=HTMLResponse)
+async def members_page():
+    """Serve the members list page"""
+    with open("app/static/members.html", "r") as f:
+        return f.read()
+
+@app.get("/member/{member_id}", response_class=HTMLResponse)
+async def member_detail_page(member_id: str):
+    """Serve the member detail page"""
+    with open("app/static/member.html", "r") as f:
+        return f.read()
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""

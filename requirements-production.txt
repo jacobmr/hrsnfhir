@@ -1,0 +1,40 @@
+# Production requirements for Azure App Service deployment
+# Core FastAPI and server dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+gunicorn==21.2.0
+
+# Database
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.7
+alembic==1.12.1
+
+# FHIR
+fhir.resources==7.0.2
+pydantic==2.5.0
+pydantic-settings==2.0.3
+
+# Additional dependencies
+python-multipart==0.0.6
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+aiofiles==23.2.1
+
+# Production server
+whitenoise==6.6.0
+
+# Monitoring and logging
+structlog==23.2.0
+python-json-logger==2.0.7
+
+# Environment and configuration
+python-dotenv==1.0.0
+
+# Security
+cryptography==41.0.7
+
+# Date/time handling
+python-dateutil==2.8.2
+
+# HTTP client for health checks
+httpx==0.25.2
