@@ -1,0 +1,636 @@
+{
+  "resourceType": "Bundle",
+  "id": "hrsn-screening-001-complete",
+  "type": "transaction",
+  "timestamp": "2024-10-15T14:30:00Z",
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:patient-maria-rodriguez",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "patient-maria-rodriguez",
+        "meta": {
+          "profile": ["http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient"]
+        },
+        "identifier": [
+          {
+            "use": "usual",
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "MR",
+                  "display": "Medical Record Number"
+                }
+              ]
+            },
+            "system": "http://albanyhealth.org/patient-ids",
+            "value": "MRN123456789"
+          }
+        ],
+        "active": true,
+        "name": [
+          {
+            "use": "official",
+            "family": "White",
+            "given": ["Snow", "Princess"]
+          }
+        ],
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "555-DWARF-01",
+            "use": "home"
+          },
+          {
+            "system": "email",
+            "value": "snow.white@enchanted.forest",
+            "use": "home"
+          }
+        ],
+        "gender": "female",
+        "birthDate": "1985-03-15",
+        "address": [
+          {
+            "use": "home",
+            "type": "both",
+            "line": ["123 Enchanted Forest Lane", "Cottage #7"],
+            "city": "Fairytale Kingdom",
+            "state": "NY",
+            "postalCode": "12345",
+            "country": "US"
+          }
+        ],
+        "communication": [
+          {
+            "language": {
+              "coding": [
+                {
+                  "system": "urn:ietf:bcp:47",
+                  "code": "en-US",
+                  "display": "English (United States)"
+                }
+              ]
+            },
+            "preferred": true
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Patient/patient-maria-rodriguez"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:organization-albany-community-health",
+      "resource": {
+        "resourceType": "Organization",
+        "id": "albany-community-health",
+        "meta": {
+          "profile": ["http://hl7.org/fhir/us/core/StructureDefinition/us-core-organization"]
+        },
+        "identifier": [
+          {
+            "use": "official",
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "TAX",
+                  "display": "Tax ID number"
+                }
+              ]
+            },
+            "system": "urn:oid:2.16.840.1.113883.4.4",
+            "value": "12-3456789"
+          }
+        ],
+        "active": true,
+        "type": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/organization-type",
+                "code": "other",
+                "display": "Other"
+              }
+            ],
+            "text": "SCN Lead Entity"
+          }
+        ],
+        "name": "Albany Community Health Center - SCN Lead",
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "518-555-0100",
+            "use": "work"
+          },
+          {
+            "system": "email",
+            "value": "info@albanyhealth.org",
+            "use": "work"
+          }
+        ],
+        "address": [
+          {
+            "use": "work",
+            "type": "both",
+            "line": ["123 Health Way"],
+            "city": "Albany",
+            "state": "NY",
+            "postalCode": "12208",
+            "country": "US"
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Organization/albany-community-health"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:encounter-screening-001",
+      "resource": {
+        "resourceType": "Encounter",
+        "id": "encounter-screening-001",
+        "meta": {
+          "profile": ["http://hl7.org/fhir/us/core/StructureDefinition/us-core-encounter"]
+        },
+        "status": "finished",
+        "class": {
+          "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+          "code": "AMB",
+          "display": "ambulatory"
+        },
+        "type": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "405672008",
+                "display": "Direct questioning"
+              }
+            ]
+          }
+        ],
+        "subject": {
+          "reference": "Patient/patient-maria-rodriguez",
+          "display": "Snow Princess White"
+        },
+        "period": {
+          "start": "2024-10-15T14:30:00Z",
+          "end": "2024-10-15T14:45:00Z"
+        },
+        "serviceProvider": {
+          "reference": "Organization/albany-community-health",
+          "display": "Albany Community Health Center - SCN Lead"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Encounter/encounter-screening-001"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:consent-screening-001",
+      "resource": {
+        "resourceType": "Consent",
+        "id": "consent-screening-001",
+        "status": "active",
+        "scope": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/consentscope",
+              "code": "patient-privacy",
+              "display": "Privacy Consent"
+            }
+          ]
+        },
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/consentcategorycodes",
+                "code": "hcd",
+                "display": "Health Care Directive"
+              }
+            ]
+          }
+        ],
+        "patient": {
+          "reference": "Patient/patient-maria-rodriguez",
+          "display": "Maria Elena Rodriguez"
+        },
+        "dateTime": "2024-10-15T14:30:00Z",
+        "performer": [
+          {
+            "reference": "Patient/patient-maria-rodriguez",
+            "display": "Maria Elena Rodriguez"
+          }
+        ],
+        "organization": [
+          {
+            "reference": "Organization/albany-community-health",
+            "display": "Albany Community Health Center - SCN Lead"
+          }
+        ],
+        "policyRule": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/consentpolicycodes",
+              "code": "hipaa-auth",
+              "display": "HIPAA Authorization"
+            }
+          ]
+        },
+        "provision": {
+          "type": "permit",
+          "purpose": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason",
+              "code": "HRESCH",
+              "display": "healthcare research"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Consent/consent-screening-001"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:questionnaire-response-screening-001",
+      "resource": {
+        "resourceType": "QuestionnaireResponse",
+        "id": "questionnaire-response-screening-001",
+        "meta": {
+          "profile": ["http://shinny.org/us/ny/hrsn/StructureDefinition/SHINNYQuestionnaireResponse"]
+        },
+        "questionnaire": "http://shinny.org/us/ny/hrsn/Questionnaire/NYSAHCHRSN",
+        "status": "completed",
+        "subject": {
+          "reference": "Patient/patient-maria-rodriguez",
+          "display": "Snow Princess White"
+        },
+        "encounter": {
+          "reference": "Encounter/encounter-screening-001"
+        },
+        "authored": "2024-10-15T14:30:00Z",
+        "item": [
+          {
+            "linkId": "71802-3",
+            "text": "What is your living situation today?",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA31994-9",
+                  "display": "I have a place to live today, but I am worried about losing it in the future"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "96778-6",
+            "text": "Think about the place you live. Do you have problems with any of the following?",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA31996-4",
+                  "display": "Pests such as bugs, ants, or mice"
+                }
+              },
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA31998-0",
+                  "display": "Lack of heat"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "96779-4",
+            "text": "In the past 12 months has the electric, gas, oil, or water company threatened to shut off services in your home?",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA33-6",
+                  "display": "Yes"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "88122-7",
+            "text": "Within the past 12 months, you worried that your food would run out before you got money to buy more.",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA6729-3",
+                  "display": "Sometimes true"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "88123-5",
+            "text": "Within the past 12 months, the food you bought just didn't last and you didn't have money to get more.",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA28398-8",
+                  "display": "Never true"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "93030-5",
+            "text": "In the past 12 months, has lack of reliable transportation kept you from medical appointments, meetings, work or from getting things needed for daily living?",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA33-6",
+                  "display": "Yes"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "96780-2",
+            "text": "Do you want help finding or keeping work or a job?",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA31981-6",
+                  "display": "Yes, help finding work"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "96782-8",
+            "text": "Do you want help with school or training? For example, starting or completing job training or getting a high school diploma, GED or equivalent.",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA32-8",
+                  "display": "No"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "95618-5",
+            "text": "How often does anyone, including family and friends, physically hurt you?",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA10066-1",
+                  "display": "Rarely"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "95617-7",
+            "text": "How often does anyone, including family and friends, insult or talk down to you?",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA10082-8",
+                  "display": "Sometimes"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "95616-9",
+            "text": "How often does anyone, including family and friends, threaten you with harm?",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA6270-8",
+                  "display": "Never"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "95615-1",
+            "text": "How often does anyone, including family and friends, scream or curse at you?",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA16644-9",
+                  "display": "Fairly often"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "95614-4",
+            "text": "Total Safety Score",
+            "answer": [
+              {
+                "valueInteger": 9
+              }
+            ]
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "QuestionnaireResponse/questionnaire-response-screening-001"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:observation-q1-001",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "observation-q1-001",
+        "meta": {
+          "profile": ["http://shinny.org/us/ny/hrsn/StructureDefinition/SHINNYObservationScreeningResponse"]
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/us/sdoh-clinicalcare/CodeSystem/SDOHCC-CodeSystemTemporaryCodes",
+                "code": "housing-instability",
+                "display": "Housing Instability"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "71802-3",
+              "display": "What is your living situation today"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/patient-maria-rodriguez",
+          "display": "Snow Princess White"
+        },
+        "encounter": {
+          "reference": "Encounter/encounter-screening-001"
+        },
+        "effectiveDateTime": "2024-10-15T14:30:00Z",
+        "valueCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "LA31994-9",
+              "display": "I have a place to live today, but I am worried about losing it in the future"
+            }
+          ]
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "POS",
+                "display": "Positive"
+              }
+            ]
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/observation-q1-001"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:observation-q3-001",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "observation-q3-001",
+        "meta": {
+          "profile": ["http://shinny.org/us/ny/hrsn/StructureDefinition/SHINNYObservationScreeningResponse"]
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/us/sdoh-clinicalcare/CodeSystem/SDOHCC-CodeSystemTemporaryCodes",
+                "code": "utility-insecurity",
+                "display": "Utility Insecurity"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "96779-4",
+              "display": "In the past 12 months has the electric, gas, oil, or water company threatened to shut off services in your home"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/patient-maria-rodriguez",
+          "display": "Snow Princess White"
+        },
+        "encounter": {
+          "reference": "Encounter/encounter-screening-001"
+        },
+        "effectiveDateTime": "2024-10-15T14:30:00Z",
+        "valueCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "LA33-6",
+              "display": "Yes"
+            }
+          ]
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "POS",
+                "display": "Positive"
+              }
+            ]
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/observation-q3-001"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:observation-safety-score-001",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "observation-safety-score-001",
+        "meta": {
+          "profile": ["http://shinny.org/us/ny/hrsn/StructureDefinition/SHINNYObservationScreeningResponse"]
+        },
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/us/sdoh-clinicalcare/CodeSystem/SDOHCC-CodeSystemTemporaryCodes",
+                "code": "sdoh-category-unspecified",
+                "display": "SDOH Category Unspecified"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "95614-4",
+              "display": "Total Safety Score"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/patient-maria-rodriguez",
+          "display": "Snow Princess White"
+        },
+        "encounter": {
+          "reference": "Encounter/encounter-screening-001"
+        },
+        "effectiveDateTime": "2024-10-15T14:30:00Z",
+        "valueInteger": 9,
+        "note": [
+          {
+            "text": "Safety score calculated from questions 9-12: Rarely (2) + Sometimes (3) + Never (1) + Fairly often (4) = 9. Score below 11 threshold."
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/observation-safety-score-001"
+      }
+    }
+  ]
+}

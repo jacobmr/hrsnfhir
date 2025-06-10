@@ -5,6 +5,8 @@ from datetime import datetime
 from typing import Dict, Any, List
 import json
 import logging
+import re
+from collections import defaultdict
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -16,6 +18,13 @@ app = FastAPI(
     description="Web interface for processing HRSN FHIR data bundles",
     version="1.0.0"
 )
+
+# Simple in-memory database for patient data
+patient_database = {
+    "patients": [],
+    "screenings": [],
+    "responses": []
+}
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -58,6 +67,9 @@ async def process_bundle(bundle: Dict[str, Any]):
         # Process bundle entries
         result = extract_bundle_data(bundle)
         result["bundle_info"] = bundle_info
+        
+        # Store data in our simple database for chatbot queries
+        store_patient_data(result)
         
         logger.info(f"Successfully processed bundle {bundle_info['id']}")
         return result
@@ -168,11 +180,16 @@ def extract_questionnaire_response(response: Dict[str, Any]) -> tuple:
     safety_score = 0
     questions_answered = 0
     positive_screens = 0
+    answered_questions = set()  # Track unique questions answered
     
     # Process individual question responses
     for item in response.get("item", []):
         question_code = item.get("linkId")
         question_text = item.get("text", "")
+        
+        # Track that this question was answered (excluding calculated fields like safety score)
+        if question_code and item.get("answer") and question_code != "95614-4":
+            answered_questions.add(question_code)
         
         for answer in item.get("answer", []):
             answer_value = None
@@ -189,8 +206,6 @@ def extract_questionnaire_response(response: Dict[str, Any]) -> tuple:
                 answer_value = "Yes" if answer["valueBoolean"] else "No"
             
             if answer_value:
-                questions_answered += 1
-                
                 # Check for positive screens (simplified logic)
                 if is_positive_screen(question_code, answer_code, answer_value):
                     positive_screens += 1
@@ -209,6 +224,9 @@ def extract_questionnaire_response(response: Dict[str, Any]) -> tuple:
                     "safety_score": score or 0,
                     "is_positive": is_positive_screen(question_code, answer_code, answer_value)
                 })
+    
+    # Use the count of unique questions answered instead of individual answers
+    questions_answered = len(answered_questions)
     
     screening_data.update({
         "total_safety_score": safety_score,
@@ -287,6 +305,432 @@ def calculate_summary(screenings: List[Dict], responses: List[Dict]) -> Dict[str
         "positive_screens": screening.get("positive_screens", 0),
         "questions_answered": screening.get("questions_answered", 0),
         "completion_rate": round((screening.get("questions_answered", 0) / 12) * 100, 1)
+    }
+
+def store_patient_data(result: Dict[str, Any]):
+    """Store extracted patient data in our simple database"""
+    global patient_database
+    
+    # Add patients (avoid duplicates by patient ID)
+    for patient in result.get("patients", []):
+        patient_id = patient.get("patient_id")
+        if patient_id and not any(p.get("patient_id") == patient_id for p in patient_database["patients"]):
+            patient_database["patients"].append(patient)
+    
+    # Add screenings
+    patient_database["screenings"].extend(result.get("screenings", []))
+    
+    # Add responses
+    patient_database["responses"].extend(result.get("responses", []))
+
+@app.post("/api/chatbot")
+async def chatbot_query(query_data: Dict[str, Any]):
+    """
+    Chatbot endpoint to answer questions about patient data
+    """
+    try:
+        question = query_data.get("question", "").strip().lower()
+        
+        if not question:
+            raise HTTPException(status_code=400, detail="Question is required")
+        
+        logger.info(f"Chatbot query: {question}")
+        
+        # Process the question and generate response
+        response = process_chatbot_query(question)
+        
+        return {
+            "question": query_data.get("question"),
+            "answer": response["answer"],
+            "data": response.get("data", []),
+            "summary": response.get("summary", {})
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Chatbot error: {e}")
+        raise HTTPException(status_code=500, detail=f"Chatbot error: {str(e)}")
+
+def process_chatbot_query(question: str) -> Dict[str, Any]:
+    """Process chatbot questions and return structured responses"""
+    
+    # Get current database stats
+    total_patients = len(patient_database["patients"])
+    
+    if total_patients == 0:
+        return {
+            "answer": "No patient data available. Please upload some FHIR bundles first to populate the database.",
+            "data": [],
+            "summary": {"total_patients": 0}
+        }
+    
+    # Food insecurity questions
+    if "food" in question and ("insecurity" in question or "insecure" in question):
+        return analyze_food_insecurity()
+    
+    # Housing questions
+    elif "housing" in question or "homeless" in question or "shelter" in question:
+        return analyze_housing_issues()
+    
+    # Transportation questions
+    elif "transport" in question or "transportation" in question:
+        return analyze_transportation_issues()
+    
+    # Safety/violence questions
+    elif "safety" in question or "violence" in question or "hurt" in question:
+        return analyze_safety_concerns()
+    
+    # High risk patients
+    elif "high risk" in question or "risk" in question:
+        return analyze_high_risk_patients()
+    
+    # Patient list/count questions
+    elif "how many" in question or "count" in question or "number" in question:
+        return analyze_patient_counts(question)
+    
+    # Patient details questions
+    elif "who" in question or "which patients" in question or "tell me" in question:
+        return analyze_patient_details(question)
+    
+    # General statistics
+    elif "stats" in question or "statistics" in question or "summary" in question:
+        return get_general_statistics()
+    
+    # Database overview
+    elif "database" in question or "overview" in question or "show all" in question:
+        return get_database_overview()
+    
+    # Default response
+    else:
+        return {
+            "answer": f"I can answer questions about:\n" +
+                     f"• Food insecurity: 'How many patients have food insecurity?'\n" +
+                     f"• Housing issues: 'Which patients have housing problems?'\n" +
+                     f"• Transportation: 'Tell me about transportation issues'\n" +
+                     f"• Safety concerns: 'How many patients have safety concerns?'\n" +
+                     f"• High risk patients: 'Who are the high risk patients?'\n" +
+                     f"• General statistics: 'Show me patient statistics'\n\n" +
+                     f"Current database: {total_patients} patients",
+            "data": [],
+            "summary": {"total_patients": total_patients}
+        }
+
+def analyze_food_insecurity() -> Dict[str, Any]:
+    """Analyze food insecurity among patients"""
+    total_patients = len(patient_database["patients"])
+    food_insecure_patients = []
+    
+    # Check responses for food insecurity indicators
+    for response in patient_database["responses"]:
+        question_code = response.get("question_code", "")
+        answer_value = response.get("answer_value", "").lower()
+        patient_id = response.get("session_id", "")
+        
+        # Food insecurity questions: 88122-7 and 88123-5
+        if question_code in ["88122-7", "88123-5"]:
+            if "often true" in answer_value or "sometimes true" in answer_value:
+                # Find patient details
+                patient = next((p for p in patient_database["patients"] 
+                              if p.get("patient_id") == patient_id), None)
+                if patient and patient not in food_insecure_patients:
+                    food_insecure_patients.append(patient)
+    
+    count = len(food_insecure_patients)
+    percentage = round((count / total_patients) * 100, 1) if total_patients > 0 else 0
+    
+    # Create patient links
+    patient_data = []
+    for patient in food_insecure_patients:
+        patient_data.append({
+            "name": patient.get("name", "Unknown"),
+            "patient_id": patient.get("patient_id", ""),
+            "link": f"/patient/{patient.get('patient_id', '')}"
+        })
+    
+    return {
+        "answer": f"Food Insecurity Analysis:\n{count} out of {total_patients} patients ({percentage}%) have food insecurity issues.",
+        "data": patient_data,
+        "summary": {
+            "total_patients": total_patients,
+            "affected_count": count,
+            "percentage": percentage,
+            "condition": "food_insecurity"
+        }
+    }
+
+def analyze_housing_issues() -> Dict[str, Any]:
+    """Analyze housing issues among patients"""
+    total_patients = len(patient_database["patients"])
+    housing_issues_patients = []
+    
+    for response in patient_database["responses"]:
+        question_code = response.get("question_code", "")
+        answer_value = response.get("answer_value", "").lower()
+        patient_id = response.get("session_id", "")
+        
+        # Housing questions: 71802-3 (living situation) and 96778-6 (housing problems)
+        if question_code in ["71802-3", "96778-6"]:
+            if ("not have a steady place" in answer_value or 
+                "worried about losing" in answer_value or
+                "pests" in answer_value or
+                "mold" in answer_value or
+                "lack of heat" in answer_value):
+                
+                patient = next((p for p in patient_database["patients"] 
+                              if p.get("patient_id") == patient_id), None)
+                if patient and patient not in housing_issues_patients:
+                    housing_issues_patients.append(patient)
+    
+    count = len(housing_issues_patients)
+    percentage = round((count / total_patients) * 100, 1) if total_patients > 0 else 0
+    
+    patient_data = []
+    for patient in housing_issues_patients:
+        patient_data.append({
+            "name": patient.get("name", "Unknown"),
+            "patient_id": patient.get("patient_id", ""),
+            "link": f"/patient/{patient.get('patient_id', '')}"
+        })
+    
+    return {
+        "answer": f"Housing Issues Analysis:\n{count} out of {total_patients} patients ({percentage}%) have housing-related concerns.",
+        "data": patient_data,
+        "summary": {
+            "total_patients": total_patients,
+            "affected_count": count,
+            "percentage": percentage,
+            "condition": "housing_issues"
+        }
+    }
+
+def analyze_transportation_issues() -> Dict[str, Any]:
+    """Analyze transportation issues among patients"""
+    total_patients = len(patient_database["patients"])
+    transport_issues_patients = []
+    
+    for response in patient_database["responses"]:
+        question_code = response.get("question_code", "")
+        answer_value = response.get("answer_value", "").lower()
+        patient_id = response.get("session_id", "")
+        
+        # Transportation question: 93030-5
+        if question_code == "93030-5" and "yes" in answer_value:
+            patient = next((p for p in patient_database["patients"] 
+                          if p.get("patient_id") == patient_id), None)
+            if patient and patient not in transport_issues_patients:
+                transport_issues_patients.append(patient)
+    
+    count = len(transport_issues_patients)
+    percentage = round((count / total_patients) * 100, 1) if total_patients > 0 else 0
+    
+    patient_data = []
+    for patient in transport_issues_patients:
+        patient_data.append({
+            "name": patient.get("name", "Unknown"),
+            "patient_id": patient.get("patient_id", ""),
+            "link": f"/patient/{patient.get('patient_id', '')}"
+        })
+    
+    return {
+        "answer": f"Transportation Issues Analysis:\n{count} out of {total_patients} patients ({percentage}%) have transportation barriers.",
+        "data": patient_data,
+        "summary": {
+            "total_patients": total_patients,
+            "affected_count": count,
+            "percentage": percentage,
+            "condition": "transportation_issues"
+        }
+    }
+
+def analyze_safety_concerns() -> Dict[str, Any]:
+    """Analyze safety/violence concerns among patients"""
+    total_patients = len(patient_database["patients"])
+    high_risk_patients = []
+    
+    # Group safety scores by patient
+    patient_safety_scores = {}
+    for screening in patient_database["screenings"]:
+        patient_id = screening.get("patient_id", "")
+        safety_score = screening.get("total_safety_score", 0)
+        if patient_id:
+            patient_safety_scores[patient_id] = safety_score
+    
+    # Find high-risk patients (safety score >= 11)
+    for patient_id, safety_score in patient_safety_scores.items():
+        if safety_score >= 11:
+            patient = next((p for p in patient_database["patients"] 
+                          if p.get("patient_id") == patient_id), None)
+            if patient:
+                high_risk_patients.append({
+                    **patient,
+                    "safety_score": safety_score
+                })
+    
+    count = len(high_risk_patients)
+    percentage = round((count / total_patients) * 100, 1) if total_patients > 0 else 0
+    
+    patient_data = []
+    for patient in high_risk_patients:
+        patient_data.append({
+            "name": patient.get("name", "Unknown"),
+            "patient_id": patient.get("patient_id", ""),
+            "safety_score": patient.get("safety_score", 0),
+            "link": f"/patient/{patient.get('patient_id', '')}"
+        })
+    
+    return {
+        "answer": f"Safety Concerns Analysis:\n{count} out of {total_patients} patients ({percentage}%) have high safety risk (score ≥11).",
+        "data": patient_data,
+        "summary": {
+            "total_patients": total_patients,
+            "high_risk_count": count,
+            "percentage": percentage,
+            "condition": "safety_concerns"
+        }
+    }
+
+def analyze_high_risk_patients() -> Dict[str, Any]:
+    """Analyze high-risk patients based on safety scores"""
+    return analyze_safety_concerns()  # Same logic
+
+def get_general_statistics() -> Dict[str, Any]:
+    """Get general statistics about all patients"""
+    total_patients = len(patient_database["patients"])
+    total_screenings = len(patient_database["screenings"])
+    
+    # Calculate various statistics
+    high_risk_count = 0
+    food_insecure_count = 0
+    housing_issues_count = 0
+    
+    for screening in patient_database["screenings"]:
+        if screening.get("total_safety_score", 0) >= 11:
+            high_risk_count += 1
+    
+    # Quick counts for other conditions
+    food_result = analyze_food_insecurity()
+    housing_result = analyze_housing_issues()
+    
+    return {
+        "answer": f"Patient Database Statistics:\n" +
+                 f"• Total Patients: {total_patients}\n" +
+                 f"• Total Screenings: {total_screenings}\n" +
+                 f"• High Safety Risk: {high_risk_count} ({round((high_risk_count/total_patients)*100,1) if total_patients>0 else 0}%)\n" +
+                 f"• Food Insecurity: {food_result['summary']['affected_count']} ({food_result['summary']['percentage']}%)\n" +
+                 f"• Housing Issues: {housing_result['summary']['affected_count']} ({housing_result['summary']['percentage']}%)",
+        "data": [],
+        "summary": {
+            "total_patients": total_patients,
+            "total_screenings": total_screenings,
+            "high_risk_count": high_risk_count,
+            "food_insecurity": food_result['summary']['affected_count'],
+            "housing_issues": housing_result['summary']['affected_count']
+        }
+    }
+
+def analyze_patient_counts(question: str) -> Dict[str, Any]:
+    """Handle 'how many' type questions"""
+    if "food" in question:
+        return analyze_food_insecurity()
+    elif "housing" in question or "homeless" in question:
+        return analyze_housing_issues()
+    elif "safety" in question or "risk" in question:
+        return analyze_safety_concerns()
+    else:
+        return get_general_statistics()
+
+def analyze_patient_details(question: str) -> Dict[str, Any]:
+    """Handle 'who' or 'which patients' type questions"""
+    if "food" in question:
+        return analyze_food_insecurity()
+    elif "housing" in question or "homeless" in question:
+        return analyze_housing_issues()
+    elif "safety" in question or "risk" in question:
+        return analyze_safety_concerns()
+    else:
+        # Return all patients
+        total_patients = len(patient_database["patients"])
+        patient_data = []
+        for patient in patient_database["patients"]:
+            patient_data.append({
+                "name": patient.get("name", "Unknown"),
+                "patient_id": patient.get("patient_id", ""),
+                "gender": patient.get("gender", ""),
+                "birth_date": patient.get("birth_date", ""),
+                "link": f"/patient/{patient.get('patient_id', '')}"
+            })
+        
+        return {
+            "answer": f"All Patients in Database ({total_patients} total):",
+            "data": patient_data,
+            "summary": {"total_patients": total_patients}
+        }
+
+def get_database_overview() -> Dict[str, Any]:
+    """Get comprehensive database overview with all patient details"""
+    total_patients = len(patient_database["patients"])
+    total_screenings = len(patient_database["screenings"])
+    total_responses = len(patient_database["responses"])
+    
+    if total_patients == 0:
+        return {
+            "answer": "Database is empty. Upload some FHIR bundles to populate patient data.",
+            "data": [],
+            "summary": {"total_patients": 0}
+        }
+    
+    # Collect all patient data with their screening info
+    patient_overview = []
+    
+    for patient in patient_database["patients"]:
+        patient_id = patient.get("patient_id", "")
+        
+        # Find screening data for this patient
+        screening = next((s for s in patient_database["screenings"] 
+                         if s.get("patient_id") == patient_id), {})
+        
+        # Count responses for this patient
+        patient_responses = [r for r in patient_database["responses"] 
+                           if r.get("session_id") == patient_id]
+        
+        patient_overview.append({
+            "name": patient.get("name", "Unknown"),
+            "patient_id": patient_id,
+            "gender": patient.get("gender", "N/A"),
+            "birth_date": patient.get("birth_date", "N/A"),
+            "address": patient.get("address", "N/A"),
+            "safety_score": screening.get("total_safety_score", 0),
+            "high_risk": screening.get("total_safety_score", 0) >= 11,
+            "questions_answered": screening.get("questions_answered", 0),
+            "positive_screens": screening.get("positive_screens", 0),
+            "response_count": len(patient_responses),
+            "link": f"/patient/{patient_id}"
+        })
+    
+    # Sort by safety score (highest risk first)
+    patient_overview.sort(key=lambda x: x.get("safety_score", 0), reverse=True)
+    
+    answer = f"Database Overview - Complete Patient Details:\n"
+    answer += f"📊 Total: {total_patients} patients, {total_screenings} screenings, {total_responses} responses\n\n"
+    
+    for i, patient in enumerate(patient_overview, 1):
+        risk_indicator = "⚠️ HIGH RISK" if patient["high_risk"] else "✅ Low Risk"
+        answer += f"{i}. {patient['name']} ({patient['gender']}, {patient['birth_date']})\n"
+        answer += f"   Safety Score: {patient['safety_score']} - {risk_indicator}\n"
+        answer += f"   Questions Answered: {patient['questions_answered']}/12\n"
+        answer += f"   Positive Screens: {patient['positive_screens']}\n"
+        answer += f"   Address: {patient['address']}\n\n"
+    
+    return {
+        "answer": answer.strip(),
+        "data": patient_overview,
+        "summary": {
+            "total_patients": total_patients,
+            "total_screenings": total_screenings,
+            "total_responses": total_responses,
+            "high_risk_count": sum(1 for p in patient_overview if p["high_risk"])
+        }
     }
 
 if __name__ == "__main__":

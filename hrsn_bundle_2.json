@@ -36,14 +36,14 @@
         "name": [
           {
             "use": "official",
-            "family": "Chen",
-            "given": ["James", "Wei"]
+            "family": "Charming",
+            "given": ["Prince", "Handsome"]
           }
         ],
         "telecom": [
           {
             "system": "phone",
-            "value": "716-555-0298",
+            "value": "555-ROYAL-42",
             "use": "mobile"
           }
         ],
@@ -52,10 +52,10 @@
         "address": [
           {
             "use": "home",
-            "line": ["789 Elmwood Ave"],
-            "city": "Buffalo",
+            "line": ["777 Crystal Palace Way"],
+            "city": "Royal Kingdom",
             "state": "NY",
-            "postalCode": "14222",
+            "postalCode": "33333",
             "country": "US"
           }
         ]
@@ -251,6 +251,193 @@
         "provision": {
           "type": "permit"
         }
+      }
+    },
+    {
+      "fullUrl": "QuestionnaireResponse/questionnaire-response-002",
+      "resource": {
+        "resourceType": "QuestionnaireResponse",
+        "id": "questionnaire-response-002",
+        "meta": {
+          "profile": ["http://shinny.org/us/ny/hrsn/StructureDefinition/SHINNYQuestionnaireResponse"]
+        },
+        "questionnaire": "http://shinny.org/us/ny/hrsn/Questionnaire/NYSAHCHRSN",
+        "status": "completed",
+        "subject": {
+          "reference": "Patient/patient-james-chen",
+          "display": "James Wei Chen"
+        },
+        "encounter": {
+          "reference": "Encounter/screening-encounter-002"
+        },
+        "authored": "2025-06-09T14:15:00Z",
+        "item": [
+          {
+            "linkId": "71802-3",
+            "text": "What is your living situation today?",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA31993-1",
+                  "display": "I have a steady place to live"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "96778-6",
+            "text": "Think about the place you live. Do you have problems with any of the following?",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA31996-4",
+                  "display": "Pests such as bugs, ants, or mice"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "96779-4",
+            "text": "In the past 12 months has the electric, gas, oil, or water company threatened to shut off services in your home?",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA32-8",
+                  "display": "No"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "88122-7",
+            "text": "Within the past 12 months, you worried that your food would run out before you got money to buy more.",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA28398-8",
+                  "display": "Never true"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "88123-5",
+            "text": "Within the past 12 months, the food you bought just didn't last and you didn't have money to get more.",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA28398-8",
+                  "display": "Never true"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "93030-5",
+            "text": "In the past 12 months, has lack of reliable transportation kept you from medical appointments, meetings, work or from getting things needed for daily living?",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA33-6",
+                  "display": "Yes"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "96780-2",
+            "text": "Do you want help finding or keeping work or a job?",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA31983-2",
+                  "display": "I do not need or want help"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "96782-8",
+            "text": "Do you want help with school or training? For example, starting or completing job training or getting a high school diploma, GED or equivalent.",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA33-6",
+                  "display": "Yes"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "95618-5",
+            "text": "How often does anyone, including family and friends, physically hurt you?",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA6270-8",
+                  "display": "Never"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "95617-7",
+            "text": "How often does anyone, including family and friends, insult or talk down to you?",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA10066-1",
+                  "display": "Rarely"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "95616-9",
+            "text": "How often does anyone, including family and friends, threaten you with harm?",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA6270-8",
+                  "display": "Never"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "95615-1",
+            "text": "How often does anyone, including family and friends, scream or curse at you?",
+            "answer": [
+              {
+                "valueCoding": {
+                  "system": "http://loinc.org",
+                  "code": "LA6270-8",
+                  "display": "Never"
+                }
+              }
+            ]
+          },
+          {
+            "linkId": "95614-4",
+            "text": "Total Safety Score",
+            "answer": [
+              {
+                "valueInteger": 3
+              }
+            ]
+          }
+        ]
       }
     },
     {

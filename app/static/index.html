@@ -160,6 +160,81 @@
             border-bottom: 2px solid #e9ecef;
             padding-bottom: 10px;
         }
+        
+        /* Chatbot Styles */
+        .chat-container {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            overflow: hidden;
+        }
+        .chat-messages {
+            height: 400px;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .chat-message {
+            margin-bottom: 15px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            line-height: 1.4;
+        }
+        .chat-message.user {
+            background: #667eea;
+            color: white;
+            margin-left: 50px;
+        }
+        .chat-message.bot {
+            background: white;
+            border: 1px solid #ddd;
+            margin-right: 50px;
+        }
+        .chat-input-container {
+            display: flex;
+            padding: 15px;
+            background: white;
+            border-top: 1px solid #ddd;
+        }
+        .chat-input-container input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+            font-size: 14px;
+        }
+        .chat-input-container button {
+            padding: 12px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .chat-input-container button:hover {
+            background: #5a6fd8;
+        }
+        .chat-input-container button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .patient-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .patient-link:hover {
+            text-decoration: underline;
+        }
+        .chat-data {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body>
@@ -194,6 +269,26 @@
         </div>
 
         <div class="status" id="statusMessage"></div>
+    </div>
+
+    <!-- Chatbot Section -->
+    <div class="container">
+        <div class="section-title">🤖 Patient Data Chatbot</div>
+        <p>Ask questions about the patient data. Examples: "How many patients have food insecurity?" or "Who are the high risk patients?"</p>
+        
+        <div class="chat-container">
+            <div class="chat-messages" id="chatMessages">
+                <div class="chat-message bot">
+                    <strong>HRSN Chatbot:</strong> Hello! I can answer questions about patient data. Upload some FHIR bundles first, then ask me anything!
+                </div>
+            </div>
+            
+            <div class="chat-input-container">
+                <input type="text" id="chatInput" placeholder="Ask a question about patient data..." 
+                       onkeypress="handleChatKeyPress(event)">
+                <button onclick="sendChatMessage()" id="chatSendBtn">Send</button>
+            </div>
+        </div>
     </div>
 
     <div class="container results-section" id="resultsSection">
@@ -431,6 +526,97 @@
                 }
             }
             return value;
+        }
+
+        // Chatbot functionality
+        function handleChatKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendChatMessage();
+            }
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const question = input.value.trim();
+            
+            if (!question) return;
+            
+            // Add user message to chat
+            addChatMessage(question, 'user');
+            
+            // Clear input and disable send button
+            input.value = '';
+            const sendBtn = document.getElementById('chatSendBtn');
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Thinking...';
+            
+            try {
+                // Send request to chatbot API
+                const response = await fetch('/api/chatbot', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question: question
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Add bot response to chat
+                addChatMessage(data.answer, 'bot', data.data, data.summary);
+                
+            } catch (error) {
+                console.error('Chatbot error:', error);
+                addChatMessage('Sorry, I encountered an error processing your question. Please try again.', 'bot');
+            } finally {
+                // Re-enable send button
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send';
+                input.focus();
+            }
+        }
+
+        function addChatMessage(message, sender, patientData = [], summary = {}) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${sender}`;
+            
+            let content = `<strong>${sender === 'user' ? 'You' : 'HRSN Chatbot'}:</strong> ${message.replace(/\n/g, '<br>')}`;
+            
+            // Add patient data if available
+            if (patientData && patientData.length > 0) {
+                content += '<div class="chat-data">';
+                content += '<strong>Patient Details:</strong><br>';
+                patientData.forEach(patient => {
+                    content += `• <a href="${patient.link}" class="patient-link">${patient.name}</a>`;
+                    if (patient.patient_id) content += ` (ID: ${patient.patient_id})`;
+                    if (patient.safety_score) content += ` - Safety Score: ${patient.safety_score}`;
+                    content += '<br>';
+                });
+                content += '</div>';
+            }
+            
+            // Add summary if available
+            if (summary && Object.keys(summary).length > 0) {
+                content += '<div class="chat-data">';
+                content += '<strong>Summary:</strong><br>';
+                if (summary.total_patients) content += `Total Patients: ${summary.total_patients}<br>`;
+                if (summary.affected_count !== undefined) content += `Affected: ${summary.affected_count}<br>`;
+                if (summary.percentage !== undefined) content += `Percentage: ${summary.percentage}%<br>`;
+                content += '</div>';
+            }
+            
+            messageDiv.innerHTML = content;
+            chatMessages.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
         }
     </script>
 </body>
