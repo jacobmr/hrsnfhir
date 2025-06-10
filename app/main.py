@@ -64,7 +64,7 @@ async def root():
     """Root endpoint"""
     return {
         "message": "HRSN FHIR Processing Server",
-        "version": "1.0.0",
+        "version": "1.0.1",
         "status": "running",
         "docs": "/docs",
         "health": "/health",
