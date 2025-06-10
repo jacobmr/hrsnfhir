@@ -18,7 +18,7 @@ services:
     volumes:
       - ./logs:/app/logs
       - .:/app
-    command: uvicorn app.simple_main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.web_main:app --host 0.0.0.0 --port 8000 --reload
 
   db:
     image: postgres:14

@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HRSN FHIR Bundle Processor</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f7fa;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+        .upload-area:hover {
+            border-color: #667eea;
+            background-color: #f8f9ff;
+        }
+        .upload-area.dragover {
+            border-color: #667eea;
+            background-color: #f0f2ff;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .upload-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .process-btn {
+            background: #28a745;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-left: 10px;
+            transition: all 0.3s ease;
+        }
+        .process-btn:hover {
+            background: #218838;
+        }
+        .process-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            display: none;
+        }
+        .status.success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .status.info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        .results-section {
+            display: none;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .file-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            display: none;
+        }
+        .section-title {
+            color: #495057;
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>HRSN FHIR Bundle Processor</h1>
+        <p>Upload and process FHIR bundles for Health-Related Social Needs screening</p>
+    </div>
+
+    <div class="container">
+        <div class="section-title">📁 File Upload</div>
+        
+        <div class="upload-area" id="uploadArea">
+            <div>
+                <p style="font-size: 18px; margin-bottom: 15px;">📄 Drop your FHIR JSON file here or click to select</p>
+                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                    Choose File
+                </button>
+                <input type="file" id="fileInput" accept=".json" onchange="handleFileSelect(event)">
+            </div>
+        </div>
+
+        <div class="file-info" id="fileInfo">
+            <strong>Selected file:</strong> <span id="fileName"></span><br>
+            <strong>Size:</strong> <span id="fileSize"></span><br>
+            <strong>Type:</strong> <span id="fileType"></span>
+        </div>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="process-btn" id="processBtn" onclick="processFile()" disabled>
+                🚀 Process FHIR Bundle
+            </button>
+        </div>
+
+        <div class="status" id="statusMessage"></div>
+    </div>
+
+    <div class="container results-section" id="resultsSection">
+        <div class="section-title">📊 Processing Results</div>
+        
+        <div id="loadingIndicator" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Processing FHIR bundle...</p>
+        </div>
+
+        <div id="resultsContent"></div>
+    </div>
+
+    <script>
+        let selectedFile = null;
+
+        // Drag and drop functionality
+        const uploadArea = document.getElementById('uploadArea');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        function handleFile(file) {
+            if (!file.name.toLowerCase().endsWith('.json')) {
+                showStatus('Please select a JSON file.', 'error');
+                return;
+            }
+
+            selectedFile = file;
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatFileSize(file.size);
+            document.getElementById('fileType').textContent = file.type || 'application/json';
+            document.getElementById('fileInfo').style.display = 'block';
+            document.getElementById('processBtn').disabled = false;
+            
+            showStatus('File selected successfully. Ready to process.', 'success');
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        async function processFile() {
+            if (!selectedFile) {
+                showStatus('Please select a file first.', 'error');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loadingIndicator').style.display = 'block';
+            document.getElementById('resultsSection').style.display = 'block';
+            document.getElementById('resultsContent').innerHTML = '';
+            document.getElementById('processBtn').disabled = true;
+
+            try {
+                // Read file content
+                const fileContent = await readFileAsText(selectedFile);
+                let jsonData;
+                
+                try {
+                    jsonData = JSON.parse(fileContent);
+                } catch (parseError) {
+                    throw new Error('Invalid JSON file. Please check the file format.');
+                }
+
+                // Send to server
+                const response = await fetch('/api/process-bundle', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(jsonData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showStatus('FHIR bundle processed successfully!', 'success');
+                    displayResults(result);
+                } else {
+                    throw new Error(result.detail || 'Processing failed');
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus(`Error: ${error.message}`, 'error');
+                document.getElementById('resultsSection').style.display = 'none';
+            } finally {
+                document.getElementById('loadingIndicator').style.display = 'none';
+                document.getElementById('processBtn').disabled = false;
+            }
+        }
+
+        function readFileAsText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(new Error('Error reading file'));
+                reader.readAsText(file);
+            });
+        }
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+            statusEl.style.display = 'block';
+            
+            // Hide after 5 seconds for success messages
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusEl.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        function displayResults(data) {
+            const resultsContent = document.getElementById('resultsContent');
+            
+            let html = '<div class="section-title">📋 Extracted Data</div>';
+            
+            // Display bundle info
+            if (data.bundle_info) {
+                html += `
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                        <h4 style="margin-top: 0;">Bundle Information</h4>
+                        <p><strong>Bundle ID:</strong> ${data.bundle_info.id || 'N/A'}</p>
+                        <p><strong>Type:</strong> ${data.bundle_info.type || 'N/A'}</p>
+                        <p><strong>Total Resources:</strong> ${data.bundle_info.total || 0}</p>
+                        <p><strong>Processed At:</strong> ${new Date().toLocaleString()}</p>
+                    </div>
+                `;
+            }
+
+            // Display tables for each entity type
+            if (data.patients && data.patients.length > 0) {
+                html += createTable('Patients', data.patients);
+            }
+            
+            if (data.screenings && data.screenings.length > 0) {
+                html += createTable('Screening Sessions', data.screenings);
+            }
+            
+            if (data.responses && data.responses.length > 0) {
+                html += createTable('Screening Responses', data.responses);
+            }
+            
+            if (data.organizations && data.organizations.length > 0) {
+                html += createTable('Organizations', data.organizations);
+            }
+
+            if (data.summary) {
+                html += `
+                    <div style="background: #e7f3ff; padding: 15px; border-radius: 5px; margin-top: 20px;">
+                        <h4 style="margin-top: 0;">📈 Processing Summary</h4>
+                        <p><strong>Total Safety Score:</strong> ${data.summary.total_safety_score || 'N/A'}</p>
+                        <p><strong>High Risk (Score ≥11):</strong> ${data.summary.high_risk ? 'Yes' : 'No'}</p>
+                        <p><strong>Positive Screens:</strong> ${data.summary.positive_screens || 0}</p>
+                        <p><strong>Questions Answered:</strong> ${data.summary.questions_answered || 0}/12</p>
+                    </div>
+                `;
+            }
+
+            resultsContent.innerHTML = html;
+        }
+
+        function createTable(title, data) {
+            if (!data || data.length === 0) return '';
+            
+            const keys = Object.keys(data[0]);
+            
+            let html = `
+                <div style="margin-bottom: 30px;">
+                    <h4 style="color: #495057; margin-bottom: 15px;">${title}</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                ${keys.map(key => `<th>${formatColumnName(key)}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.map(row => `
+                                <tr>
+                                    ${keys.map(key => `<td>${formatCellValue(row[key])}</td>`).join('')}
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            return html;
+        }
+
+        function formatColumnName(name) {
+            return name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        function formatCellValue(value) {
+            if (value === null || value === undefined) return 'N/A';
+            if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+            if (typeof value === 'object') return JSON.stringify(value);
+            if (typeof value === 'string' && value.includes('T') && value.includes('Z')) {
+                // Format ISO dates
+                try {
+                    return new Date(value).toLocaleString();
+                } catch (e) {
+                    return value;
+                }
+            }
+            return value;
+        }
+    </script>
+</body>
+</html>
