@@ -25,8 +25,8 @@ This system processes FHIR-compliant data bundles containing screening responses
 
 1. Clone the repository:
    ```bash
-   git clone <repo-url>
-   cd hrsn
+   git clone https://github.com/jacobmr/hrsnfhir.git
+   cd hrsnfhir
    ```
 
 2. Start all services:
