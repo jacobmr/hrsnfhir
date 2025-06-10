@@ -25,7 +25,7 @@ class BundleProcessingStatus(BaseModel):
     completed_at: Optional[datetime] = None
     error_message: Optional[str] = None
     resources_processed: int = 0
-    patients_created: int = 0
+    members_created: int = 0
     screenings_created: int = 0
 
 class HealthResponse(BaseModel):
@@ -34,7 +34,7 @@ class HealthResponse(BaseModel):
     database: str
     version: str
 
-class PatientSummary(BaseModel):
+class MemberSummary(BaseModel):
     id: str
     fhir_id: str
     first_name: Optional[str]
@@ -84,7 +84,7 @@ class ServiceReferralSummary(BaseModel):
     receiving_organization: Optional[OrganizationSummary]
 
 class DashboardAnalytics(BaseModel):
-    total_patients: int
+    total_members: int
     total_screenings: int
     positive_screenings: int
     high_safety_risk_count: int  # Safety score >= 11
@@ -97,4 +97,4 @@ class SafetyScoreAnalysis(BaseModel):
     average_safety_score: float
     high_risk_count: int  # Score >= 11
     score_distribution: Dict[str, int]
-    high_risk_patients: List[PatientSummary]
+    high_risk_members: List[MemberSummary]

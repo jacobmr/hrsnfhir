@@ -149,38 +149,38 @@ async def get_bundle_status(
     # For now, return basic info
     return {"bundle_id": bundle_id, "status": "processed"}
 
-@app.get("/screening/{patient_id}")
-async def get_patient_screenings(
-    patient_id: str,
+@app.get("/screening/{member_id}")
+async def get_member_screenings(
+    member_id: str,
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
-    """Get screening history for a patient"""
-    from .analytics import get_patient_screenings
-    screenings = get_patient_screenings(db, patient_id)
-    return {"patient_id": patient_id, "screenings": screenings}
+    """Get screening history for a member"""
+    from .analytics import get_member_screenings
+    screenings = get_member_screenings(db, member_id)
+    return {"member_id": member_id, "screenings": screenings}
 
-@app.get("/eligibility/{patient_id}")
-async def get_patient_eligibility(
-    patient_id: str,
+@app.get("/eligibility/{member_id}")
+async def get_member_eligibility(
+    member_id: str,
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
-    """Get eligibility assessments for a patient"""
-    from .analytics import get_patient_eligibility_assessments
-    assessments = get_patient_eligibility_assessments(db, patient_id)
-    return {"patient_id": patient_id, "eligibility_assessments": assessments}
+    """Get eligibility assessments for a member"""
+    from .analytics import get_member_eligibility_assessments
+    assessments = get_member_eligibility_assessments(db, member_id)
+    return {"member_id": member_id, "eligibility_assessments": assessments}
 
-@app.get("/referrals/{patient_id}")
-async def get_patient_referrals(
-    patient_id: str,
+@app.get("/referrals/{member_id}")
+async def get_member_referrals(
+    member_id: str,
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
-    """Get referral history for a patient"""
-    from .analytics import get_patient_referrals
-    referrals = get_patient_referrals(db, patient_id)
-    return {"patient_id": patient_id, "referrals": referrals}
+    """Get referral history for a member"""
+    from .analytics import get_member_referrals
+    referrals = get_member_referrals(db, member_id)
+    return {"member_id": member_id, "referrals": referrals}
 
 @app.get("/analytics/dashboard")
 async def get_dashboard_analytics(

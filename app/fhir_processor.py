@@ -1,6 +1,7 @@
 # app/fhir_processor.py
 from typing import Dict, Any, List, Optional, Tuple
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from fhir.resources.bundle import Bundle
 from fhir.resources.patient import Patient as FHIRPatient
 from fhir.resources.observation import Observation as FHIRObservation
@@ -11,7 +12,7 @@ from datetime import datetime
 import logging
 
 from .models import (
-    Patient, Organization, Encounter, ScreeningSession, 
+    Member, Organization, Encounter, ScreeningSession, 
     ScreeningResponse, BundleProcessingLog
 )
 from .config import HRSN_QUESTION_MAPPINGS, ORGANIZATION_TYPE_MAPPINGS, ENCOUNTER_TYPE_MAPPINGS
@@ -55,13 +56,13 @@ class FHIRBundleProcessor:
             resources = self._extract_resources_by_type(bundle)
             
             # Process resources in order of dependencies
-            patient = self._process_patient(resources.get("Patient", []), db)
+            member = self._process_member(resources.get("Patient", []), db)
             organization = self._process_organization(resources.get("Organization", []), db)
-            encounter = self._process_encounter(resources.get("Encounter", []), patient, organization, db)
-            consent = self._process_consent(resources.get("Consent", []), patient, db)
+            encounter = self._process_encounter(resources.get("Encounter", []), member, organization, db)
+            consent = self._process_consent(resources.get("Consent", []), member, db)
             
             # Process screening session and responses
-            screening_session = self._create_screening_session(bundle, patient, encounter, consent, db)
+            screening_session = self._create_screening_session(bundle, member, encounter, consent, db)
             screening_responses = self._process_observations(resources.get("Observation", []), screening_session, db)
             
             # Calculate safety score and update session
@@ -73,7 +74,7 @@ class FHIRBundleProcessor:
             log_entry.status = "completed"
             log_entry.completed_at = datetime.utcnow()
             log_entry.resources_processed = len(bundle.entry)
-            log_entry.patients_created = 1 if patient else 0
+            log_entry.members_created = 1 if member else 0
             log_entry.screenings_created = 1 if screening_session else 0
             
             db.commit()
@@ -82,7 +83,7 @@ class FHIRBundleProcessor:
             return {
                 "status": "success",
                 "bundle_id": bundle.id,
-                "patient_id": str(patient.id) if patient else None,
+                "member_id": str(member.id) if member else None,
                 "screening_session_id": str(screening_session.id) if screening_session else None,
                 "total_safety_score": safety_score,
                 "positive_screens": self._count_positive_screens(screening_responses),
@@ -111,50 +112,58 @@ class FHIRBundleProcessor:
         
         return resources
     
-    def _process_patient(self, patients: List[FHIRPatient], db: Session) -> Optional[Patient]:
-        """Process Patient resource and create/update database record"""
-        if not patients:
+    def _process_member(self, fhir_patients: List[FHIRPatient], db: Session) -> Optional[Member]:
+        """Process Patient resource and create/update member database record with deduplication"""
+        if not fhir_patients:
             return None
         
-        fhir_patient = patients[0]  # Should only be one patient per bundle
+        fhir_patient = fhir_patients[0]  # Should only be one patient per bundle
         
-        # Check if patient already exists
-        existing = db.query(Patient).filter(Patient.fhir_id == fhir_patient.id).first()
+        # First, try to find existing member by FHIR ID
+        existing = db.query(Member).filter(Member.fhir_id == fhir_patient.id).first()
         if existing:
-            logger.info(f"Patient {fhir_patient.id} already exists, updating...")
-            patient = existing
+            logger.info(f"Member {fhir_patient.id} already exists, updating...")
+            member = existing
         else:
-            patient = Patient(fhir_id=fhir_patient.id)
-            db.add(patient)
+            # Check for potential duplicates using demographic data
+            potential_duplicate = self._find_duplicate_member(fhir_patient, db)
+            if potential_duplicate:
+                logger.info(f"Found potential duplicate member {potential_duplicate.id}, linking FHIR ID {fhir_patient.id}")
+                member = potential_duplicate
+                # Update FHIR ID to link this bundle to existing member
+                member.fhir_id = fhir_patient.id
+            else:
+                member = Member(fhir_id=fhir_patient.id)
+                db.add(member)
         
-        # Extract patient data
+        # Extract member data
         if fhir_patient.identifier:
             for identifier in fhir_patient.identifier:
                 if identifier.type and identifier.type.coding:
                     for coding in identifier.type.coding:
                         if coding.code == "MR":  # Medical Record Number
-                            patient.mrn = identifier.value
+                            member.mrn = identifier.value
         
         if fhir_patient.name:
             name = fhir_patient.name[0]
             if name.family:
-                patient.last_name = name.family
+                member.last_name = name.family
             if name.given:
-                patient.first_name = name.given[0] if name.given else None
+                member.first_name = name.given[0] if name.given else None
         
-        patient.gender = fhir_patient.gender
-        patient.date_of_birth = fhir_patient.birthDate
+        member.gender = fhir_patient.gender
+        member.date_of_birth = fhir_patient.birthDate
         
         if fhir_patient.address:
             address = fhir_patient.address[0]
-            patient.address_line1 = address.line[0] if address.line else None
-            patient.city = address.city
-            patient.state = address.state
-            patient.zip_code = address.postalCode
+            member.address_line1 = address.line[0] if address.line else None
+            member.city = address.city
+            member.state = address.state
+            member.zip_code = address.postalCode
         
         db.commit()
-        logger.info(f"Processed patient: {patient.first_name} {patient.last_name}")
-        return patient
+        logger.info(f"Processed member: {member.first_name} {member.last_name}")
+        return member
     
     def _process_organization(self, organizations: List[FHIROrganization], db: Session) -> Optional[Organization]:
         """Process Organization resource"""
@@ -200,17 +209,17 @@ class FHIRBundleProcessor:
         logger.info(f"Processed organization: {organization.name}")
         return organization
     
-    def _process_encounter(self, encounters: List[FHIREncounter], patient: Patient, 
+    def _process_encounter(self, encounters: List[FHIREncounter], member: Member, 
                           organization: Organization, db: Session) -> Optional[Encounter]:
         """Process Encounter resource"""
-        if not encounters or not patient:
+        if not encounters or not member:
             return None
         
         fhir_encounter = encounters[0]
         
         encounter = Encounter(
             fhir_id=fhir_encounter.id,
-            patient_id=patient.id,
+            member_id=member.id,
             organization_id=organization.id if organization else None,
             status=fhir_encounter.status
         )
@@ -232,19 +241,19 @@ class FHIRBundleProcessor:
         logger.info(f"Processed encounter: {encounter.fhir_id}")
         return encounter
     
-    def _process_consent(self, consents: List[FHIRConsent], patient: Patient, db: Session) -> bool:
+    def _process_consent(self, consents: List[FHIRConsent], member: Member, db: Session) -> bool:
         """Process Consent resource and return consent status"""
-        if not consents or not patient:
+        if not consents or not member:
             return False
         
         consent = consents[0]
         return consent.status == "active" and consent.provision and consent.provision.type == "permit"
     
-    def _create_screening_session(self, bundle: Bundle, patient: Patient, 
+    def _create_screening_session(self, bundle: Bundle, member: Member, 
                                  encounter: Encounter, consent_given: bool, db: Session) -> ScreeningSession:
-        """Create screening session record"""
+        """Create screening session record - allows multiple evaluations per member"""
         session = ScreeningSession(
-            patient_id=patient.id,
+            member_id=member.id,
             encounter_id=encounter.id if encounter else None,
             bundle_id=bundle.id,
             screening_date=datetime.utcnow(),
@@ -350,3 +359,54 @@ class FHIRBundleProcessor:
     def _count_positive_screens(self, responses: List[ScreeningResponse]) -> int:
         """Count number of positive screens indicating unmet needs"""
         return sum(1 for r in responses if r.positive_screen)
+    
+    def _find_duplicate_member(self, fhir_patient: FHIRPatient, db: Session) -> Optional[Member]:
+        """
+        Find potential duplicate member using demographic matching
+        
+        Matching criteria:
+        1. First name, last name, and date of birth match exactly
+        2. OR MRN matches (if available)
+        """
+        # Extract demographic data from FHIR patient
+        first_name = None
+        last_name = None
+        mrn = None
+        
+        if fhir_patient.name:
+            name = fhir_patient.name[0]
+            if name.family:
+                last_name = name.family.lower().strip()
+            if name.given:
+                first_name = name.given[0].lower().strip() if name.given else None
+        
+        if fhir_patient.identifier:
+            for identifier in fhir_patient.identifier:
+                if identifier.type and identifier.type.coding:
+                    for coding in identifier.type.coding:
+                        if coding.code == "MR":  # Medical Record Number
+                            mrn = identifier.value
+        
+        date_of_birth = fhir_patient.birthDate
+        
+        # Search for duplicates by MRN first (most reliable)
+        if mrn:
+            duplicate = db.query(Member).filter(Member.mrn == mrn).first()
+            if duplicate:
+                logger.info(f"Found duplicate member by MRN: {mrn}")
+                return duplicate
+        
+        # Search by demographic data
+        if first_name and last_name and date_of_birth:
+            # Use case-insensitive matching for names
+            duplicate = db.query(Member).filter(
+                func.lower(Member.first_name) == first_name,
+                func.lower(Member.last_name) == last_name,
+                Member.date_of_birth == date_of_birth
+            ).first()
+            
+            if duplicate:
+                logger.info(f"Found duplicate member by demographics: {first_name} {last_name} {date_of_birth}")
+                return duplicate
+        
+        return None

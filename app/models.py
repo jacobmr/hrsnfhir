@@ -8,8 +8,8 @@ import uuid
 
 Base = declarative_base()
 
-class Patient(Base):
-    __tablename__ = "patients"
+class Member(Base):
+    __tablename__ = "members"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     fhir_id = Column(String(64), unique=True, nullable=False)
@@ -26,9 +26,9 @@ class Patient(Base):
     created_at = Column(DateTime, default=func.now())
     
     # Relationships
-    screening_sessions = relationship("ScreeningSession", back_populates="patient")
-    eligibility_assessments = relationship("EligibilityAssessment", back_populates="patient")
-    service_referrals = relationship("ServiceReferral", back_populates="patient")
+    screening_sessions = relationship("ScreeningSession", back_populates="member")
+    eligibility_assessments = relationship("EligibilityAssessment", back_populates="member")
+    service_referrals = relationship("ServiceReferral", back_populates="member")
 
 class Organization(Base):
     __tablename__ = "organizations"
@@ -54,7 +54,7 @@ class Encounter(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     fhir_id = Column(String(64), unique=True, nullable=False)
-    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
+    member_id = Column(UUID(as_uuid=True), ForeignKey("members.id"), nullable=False)
     organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
     encounter_type = Column(String(50))  # 'direct-questioning' or 'self-administered'
     encounter_date = Column(DateTime)
@@ -62,7 +62,7 @@ class Encounter(Base):
     created_at = Column(DateTime, default=func.now())
     
     # Relationships
-    patient = relationship("Patient")
+    member = relationship("Member")
     organization = relationship("Organization", back_populates="encounters")
     screening_sessions = relationship("ScreeningSession", back_populates="encounter")
 
@@ -70,7 +70,7 @@ class ScreeningSession(Base):
     __tablename__ = "screening_sessions"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
+    member_id = Column(UUID(as_uuid=True), ForeignKey("members.id"), nullable=False)
     encounter_id = Column(UUID(as_uuid=True), ForeignKey("encounters.id"), nullable=False)
     bundle_id = Column(String(64))
     screening_date = Column(DateTime)
@@ -80,7 +80,7 @@ class ScreeningSession(Base):
     created_at = Column(DateTime, default=func.now())
     
     # Relationships
-    patient = relationship("Patient", back_populates="screening_sessions")
+    member = relationship("Member", back_populates="screening_sessions")
     encounter = relationship("Encounter", back_populates="screening_sessions")
     responses = relationship("ScreeningResponse", back_populates="screening_session")
     eligibility_assessments = relationship("EligibilityAssessment", back_populates="screening_session")
@@ -106,7 +106,7 @@ class EligibilityAssessment(Base):
     __tablename__ = "eligibility_assessments"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
+    member_id = Column(UUID(as_uuid=True), ForeignKey("members.id"), nullable=False)
     screening_session_id = Column(UUID(as_uuid=True), ForeignKey("screening_sessions.id"))
     assessment_date = Column(DateTime)
     eligibility_status = Column(String(50))  # 'eligible', 'not-eligible', 'pending'
@@ -115,14 +115,14 @@ class EligibilityAssessment(Base):
     created_at = Column(DateTime, default=func.now())
     
     # Relationships
-    patient = relationship("Patient", back_populates="eligibility_assessments")
+    member = relationship("Member", back_populates="eligibility_assessments")
     screening_session = relationship("ScreeningSession", back_populates="eligibility_assessments")
 
 class ServiceReferral(Base):
     __tablename__ = "service_referrals"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
+    member_id = Column(UUID(as_uuid=True), ForeignKey("members.id"), nullable=False)
     referring_organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
     receiving_organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"))
     service_category = Column(String(50))  # 'housing', 'nutrition', 'transportation', etc.
@@ -134,7 +134,7 @@ class ServiceReferral(Base):
     created_at = Column(DateTime, default=func.now())
     
     # Relationships
-    patient = relationship("Patient", back_populates="service_referrals")
+    member = relationship("Member", back_populates="service_referrals")
     referring_organization = relationship("Organization", foreign_keys=[referring_organization_id], back_populates="referring_referrals")
     receiving_organization = relationship("Organization", foreign_keys=[receiving_organization_id], back_populates="receiving_referrals")
 
@@ -147,7 +147,7 @@ class BundleProcessingLog(Base):
     status = Column(String(20))  # 'received', 'processing', 'completed', 'failed'
     error_message = Column(Text)
     resources_processed = Column(Integer, default=0)
-    patients_created = Column(Integer, default=0)
+    members_created = Column(Integer, default=0)
     screenings_created = Column(Integer, default=0)
     started_at = Column(DateTime, default=func.now())
     completed_at = Column(DateTime)

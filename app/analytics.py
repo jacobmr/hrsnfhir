@@ -3,23 +3,23 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from typing import List, Dict, Any
 from .models import (
-    Patient, ScreeningSession, ScreeningResponse, 
+    Member, ScreeningSession, ScreeningResponse, 
     EligibilityAssessment, ServiceReferral, Organization
 )
 from .schemas import (
     ScreeningSessionSummary, ScreeningResponseSummary,
     EligibilityAssessmentSummary, ServiceReferralSummary,
-    PatientSummary, OrganizationSummary
+    MemberSummary, OrganizationSummary
 )
 
-def get_patient_screenings(db: Session, patient_id: str) -> List[ScreeningSessionSummary]:
-    """Get all screening sessions for a patient"""
-    patient = db.query(Patient).filter(Patient.fhir_id == patient_id).first()
-    if not patient:
+def get_member_screenings(db: Session, member_id: str) -> List[ScreeningSessionSummary]:
+    """Get all screening sessions for a member"""
+    member = db.query(Member).filter(Member.fhir_id == member_id).first()
+    if not member:
         return []
     
     sessions = db.query(ScreeningSession).filter(
-        ScreeningSession.patient_id == patient.id
+        ScreeningSession.member_id == member.id
     ).order_by(desc(ScreeningSession.screening_date)).all()
     
     result = []
@@ -53,14 +53,14 @@ def get_patient_screenings(db: Session, patient_id: str) -> List[ScreeningSessio
     
     return result
 
-def get_patient_eligibility_assessments(db: Session, patient_id: str) -> List[EligibilityAssessmentSummary]:
-    """Get eligibility assessments for a patient"""
-    patient = db.query(Patient).filter(Patient.fhir_id == patient_id).first()
-    if not patient:
+def get_member_eligibility_assessments(db: Session, member_id: str) -> List[EligibilityAssessmentSummary]:
+    """Get eligibility assessments for a member"""
+    member = db.query(Member).filter(Member.fhir_id == member_id).first()
+    if not member:
         return []
     
     assessments = db.query(EligibilityAssessment).filter(
-        EligibilityAssessment.patient_id == patient.id
+        EligibilityAssessment.member_id == member.id
     ).order_by(desc(EligibilityAssessment.assessment_date)).all()
     
     return [
@@ -73,14 +73,14 @@ def get_patient_eligibility_assessments(db: Session, patient_id: str) -> List[El
         ) for a in assessments
     ]
 
-def get_patient_referrals(db: Session, patient_id: str) -> List[ServiceReferralSummary]:
-    """Get service referrals for a patient"""
-    patient = db.query(Patient).filter(Patient.fhir_id == patient_id).first()
-    if not patient:
+def get_member_referrals(db: Session, member_id: str) -> List[ServiceReferralSummary]:
+    """Get service referrals for a member"""
+    member = db.query(Member).filter(Member.fhir_id == member_id).first()
+    if not member:
         return []
     
     referrals = db.query(ServiceReferral).filter(
-        ServiceReferral.patient_id == patient.id
+        ServiceReferral.member_id == member.id
     ).order_by(desc(ServiceReferral.referral_date)).all()
     
     result = []
@@ -125,15 +125,15 @@ from sqlalchemy import func, and_, extract
 from datetime import datetime, timedelta
 from collections import Counter
 from .models import (
-    Patient, ScreeningSession, ScreeningResponse, Organization
+    Member, ScreeningSession, ScreeningResponse, Organization
 )
-from .schemas import DashboardAnalytics, SafetyScoreAnalysis, PatientSummary
+from .schemas import DashboardAnalytics, SafetyScoreAnalysis, MemberSummary
 
 def generate_dashboard_data(db: Session) -> DashboardAnalytics:
     """Generate dashboard analytics for HRSN data"""
     
     # Basic counts
-    total_patients = db.query(Patient).count()
+    total_members = db.query(Member).count()
     total_screenings = db.query(ScreeningSession).count()
     
     # Positive screenings (those with at least one positive response)
@@ -185,7 +185,7 @@ def generate_dashboard_data(db: Session) -> DashboardAnalytics:
     ]
     
     return DashboardAnalytics(
-        total_patients=total_patients,
+        total_members=total_members,
         total_screenings=total_screenings,
         positive_screenings=positive_screenings,
         high_safety_risk_count=high_safety_risk,
@@ -208,7 +208,7 @@ def analyze_safety_scores(db: Session) -> SafetyScoreAnalysis:
             average_safety_score=0.0,
             high_risk_count=0,
             score_distribution={},
-            high_risk_patients=[]
+            high_risk_members=[]
         )
     
     scores = [s.total_safety_score for s in screenings]
@@ -220,20 +220,20 @@ def analyze_safety_scores(db: Session) -> SafetyScoreAnalysis:
     score_counter = Counter(scores)
     score_distribution = {str(score): count for score, count in score_counter.items()}
     
-    # High risk patients
+    # High risk members
     high_risk_sessions = [s for s in screenings if s.total_safety_score >= 11]
-    high_risk_patients = []
+    high_risk_members = []
     
     for session in high_risk_sessions[:10]:  # Limit to top 10
-        patient = session.patient
-        high_risk_patients.append(PatientSummary(
-            id=str(patient.id),
-            fhir_id=patient.fhir_id,
-            first_name=patient.first_name,
-            last_name=patient.last_name,
-            date_of_birth=patient.date_of_birth,
-            gender=patient.gender,
-            mrn=patient.mrn
+        member = session.member
+        high_risk_members.append(MemberSummary(
+            id=str(member.id),
+            fhir_id=member.fhir_id,
+            first_name=member.first_name,
+            last_name=member.last_name,
+            date_of_birth=member.date_of_birth,
+            gender=member.gender,
+            mrn=member.mrn
         ))
     
     return SafetyScoreAnalysis(
@@ -241,5 +241,5 @@ def analyze_safety_scores(db: Session) -> SafetyScoreAnalysis:
         average_safety_score=round(average_score, 2),
         high_risk_count=high_risk_count,
         score_distribution=score_distribution,
-        high_risk_patients=high_risk_patients
+        high_risk_members=high_risk_members
     )
