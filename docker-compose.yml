@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8001:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/hrsn
+      - REDIS_URL=redis://redis:6379/0
+      - DEBUG=true
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - API_KEY_HEADER=X-API-Key
+      - DEFAULT_API_KEY=hrsn-dev-key-12345
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./logs:/app/logs
+      - .:/app
+    command: uvicorn app.simple_main:app --host 0.0.0.0 --port 8000 --reload
+
+  db:
+    image: postgres:14
+    environment:
+      - POSTGRES_DB=hrsn
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  worker:
+    build: .
+    command: celery -A app.worker worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/hrsn
+      - REDIS_URL=redis://redis:6379/0
+      - DEBUG=true
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./logs:/app/logs
+      - .:/app
+
+volumes:
+  postgres_data:
