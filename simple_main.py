@@ -69,6 +69,25 @@ if DATABASE_URL and DATABASE_URL != "Postgres.DATABASE_URL":
         print(f"Database connection error: {e}")
         engine = None
         SessionLocal = None
+else:
+    # Fallback: try the actual Railway PostgreSQL URL if the variable isn't set correctly
+    try:
+        fallback_url = "postgresql://postgres:wHmchslvFsGDCONyYLCeWXaWlaLWHWaI@ballast.proxy.rlwy.net:39256/railway"
+        engine = create_engine(fallback_url, echo=False)
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        
+        # Test connection
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        
+        # Create tables
+        Base.metadata.create_all(bind=engine)
+        print("Database connected successfully using fallback URL")
+        
+    except Exception as e:
+        print(f"Fallback database connection error: {e}")
+        engine = None
+        SessionLocal = None
 
 def get_db():
     """Database dependency"""
