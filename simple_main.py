@@ -72,7 +72,7 @@ if DATABASE_URL and DATABASE_URL != "Postgres.DATABASE_URL":
 else:
     # Fallback: try the actual Railway PostgreSQL URL if the variable isn't set correctly
     try:
-        fallback_url = "postgresql://postgres:wHmchslvFsGDCONyYLCeWXaWlaLWHWaI@ballast.proxy.rlwy.net:39256/railway"
+        fallback_url = "postgresql://postgres:wHmchslvFsGDCONyYLCeWXaWlaLWHWaI@postgres.railway.internal:5432/railway"
         engine = create_engine(fallback_url, echo=False)
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
         
