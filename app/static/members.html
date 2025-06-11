@@ -587,7 +587,7 @@
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
                 
-                showStatus('Screening data CSV exported successfully - one row per assessment', 'success');
+                showStatus('Screening data CSV exported successfully - one row per assessment with correct question counts', 'success');
                 
             } catch (error) {
                 console.error('Error downloading screening CSV:', error);

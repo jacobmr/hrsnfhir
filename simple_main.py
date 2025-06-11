@@ -302,15 +302,18 @@ class FHIRBundleProcessor:
         # Process responses
         safety_score = 0
         positive_screens = 0
-        questions_answered = 0
+        answered_questions = set()  # Track unique questions answered
         
         items = qr_resource.get("item", [])
         for item in items:
             question_code = item.get("linkId")
             question_text = item.get("text", "")
             
+            # Track that this question was answered (excluding calculated fields like safety score)
+            if question_code and item.get("answer") and question_code != "95614-4":
+                answered_questions.add(question_code)
+            
             if question_code and question_code in HRSN_QUESTION_MAPPINGS:
-                questions_answered += 1
                 
                 for answer in item.get("answer", []):
                     answer_code = None
@@ -351,7 +354,7 @@ class FHIRBundleProcessor:
         # Update screening with calculated values
         screening.total_safety_score = safety_score
         screening.positive_screens_count = positive_screens
-        screening.questions_answered = questions_answered
+        screening.questions_answered = len(answered_questions)
 
 # Database connection
 if DATABASE_URL and DATABASE_URL != "Postgres.DATABASE_URL":
@@ -480,7 +483,7 @@ async def health_check():
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "database": db_status,
-        "version": "1.0.4",
+        "version": "1.0.5",
         "environment": {
             "port": os.environ.get("PORT", "8000"),
             "database_url_set": bool(db_url),
@@ -773,28 +776,28 @@ async def export_members_csv(db: Session = Depends(get_db), api_key: str = Depen
             'Bundle ID',
             'FHIR Response ID',
             
-            # HRSN Category Responses
-            'Food Insecurity Responses',
-            'Transportation Issues',
-            'Housing Problems',
-            'Safety Concerns',
-            'Other Responses',
+            # HRSN Category Responses (answer values only)
+            'Food_Insecurity_Answers',
+            'Transportation_Issue_Answers',
+            'Housing_Problem_Answers',
+            'Safety_Concern_Answers',
+            'Other_Response_Answers',
             
-            # Safety Questions (Questions 9-12)
-            'Q9_Physical_Hurt_Frequency',
-            'Q10_Insult_TalkDown_Frequency', 
-            'Q11_Threaten_Harm_Frequency',
-            'Q12_Scream_Curse_Frequency',
+            # Safety Questions 9-12 (answer values)
+            'Q9_Physical_Hurt_Frequency_Answer',
+            'Q10_Insult_TalkDown_Frequency_Answer', 
+            'Q11_Threaten_Harm_Frequency_Answer',
+            'Q12_Scream_Curse_Frequency_Answer',
             
-            # Key HRSN Questions
-            'Food_Worry_12Months',
-            'Food_Didnt_Last_12Months',
-            'Transportation_Barriers',
+            # Key HRSN Questions (answer values)
+            'Food_Worry_12Months_Answer',
+            'Food_Didnt_Last_12Months_Answer',
+            'Transportation_Barriers_Answer',
             
-            # Response Summary
-            'All_Question_Codes',
-            'All_Answer_Texts',
-            'Positive_Screen_Questions'
+            # Response Summary (pipe-separated lists)
+            'All_Question_Codes_List',
+            'All_Answer_Texts_List',
+            'Positive_Screen_Code_Answer_Pairs'
         ])
         
         # Process each screening session
@@ -849,20 +852,20 @@ async def export_members_csv(db: Session = Depends(get_db), api_key: str = Depen
                 all_answer_texts.append(answer_text)
                 
                 if response.positive_screen:
-                    positive_screen_questions.append(f"{question_code}: {answer_text}")
+                    positive_screen_questions.append(f"{question_code}={answer_text}")
                 
-                # Categorize responses
+                # Categorize responses (just store answer text, not full question)
                 if question_code in ["88122-7", "88123-5"]:  # Food questions
-                    food_responses.append(f"{question_text}: {answer_text}")
+                    food_responses.append(answer_text)
                 elif question_code in ["93030-5"]:  # Transportation
-                    transport_responses.append(f"{question_text}: {answer_text}")
+                    transport_responses.append(answer_text)
                 elif question_code in ["71802-3", "96778-6"]:  # Housing questions
-                    housing_responses.append(f"{question_text}: {answer_text}")
+                    housing_responses.append(answer_text)
                 elif question_code in safety_questions:  # Safety questions
-                    safety_responses.append(f"{question_text}: {answer_text}")
+                    safety_responses.append(answer_text)
                     safety_questions[question_code] = answer_text
                 else:
-                    other_responses.append(f"{question_text}: {answer_text}")
+                    other_responses.append(answer_text)
                 
                 # Capture specific HRSN questions
                 if question_code in hrsn_questions:
