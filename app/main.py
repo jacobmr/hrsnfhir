@@ -11,7 +11,7 @@ import uuid
 
 from .database import get_db, engine
 from .models import Base
-from .fhir_processor import FHIRBundleProcessor
+from .fhir_processor_simple import FHIRBundleProcessor
 from .schemas import BundleResponse, HealthResponse, BundleProcessingStatus
 from .config import settings
 
@@ -151,7 +151,7 @@ async def get_member_detail(
     api_key: str = Depends(verify_api_key)
 ):
     """Get detailed member information with assessments"""
-    from .models import Member, Screening
+    from .models import Member, ScreeningSession
     from datetime import date
     
     member = db.query(Member).filter(Member.id == member_id).first()
@@ -165,7 +165,7 @@ async def get_member_detail(
         return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
     
     # Get all screenings for this member
-    screenings = db.query(Screening).filter(Screening.member_id == member_id).all()
+    screenings = db.query(ScreeningSession).filter(ScreeningSession.member_id == member_id).all()
     
     zip_code = ""
     if member.zip_code:
@@ -283,7 +283,7 @@ async def get_member_screenings(
     api_key: str = Depends(verify_api_key)
 ):
     """Get screening history for a member"""
-    from .analytics import get_member_screenings
+    from .analytics_simple import get_member_screenings
     screenings = get_member_screenings(db, member_id)
     return {"member_id": member_id, "screenings": screenings}
 
@@ -294,7 +294,7 @@ async def get_member_eligibility(
     api_key: str = Depends(verify_api_key)
 ):
     """Get eligibility assessments for a member"""
-    from .analytics import get_member_eligibility_assessments
+    from .analytics_simple import get_member_eligibility_assessments
     assessments = get_member_eligibility_assessments(db, member_id)
     return {"member_id": member_id, "eligibility_assessments": assessments}
 
@@ -305,7 +305,7 @@ async def get_member_referrals(
     api_key: str = Depends(verify_api_key)
 ):
     """Get referral history for a member"""
-    from .analytics import get_member_referrals
+    from .analytics_simple import get_member_referrals
     referrals = get_member_referrals(db, member_id)
     return {"member_id": member_id, "referrals": referrals}
 
@@ -315,7 +315,7 @@ async def get_dashboard_analytics(
     api_key: str = Depends(verify_api_key)
 ):
     """Get dashboard analytics for HRSN data"""
-    from .analytics import generate_dashboard_data
+    from .analytics_simple import generate_dashboard_data
     
     data = generate_dashboard_data(db)
     return data
@@ -326,7 +326,7 @@ async def get_safety_score_report(
     api_key: str = Depends(verify_api_key)
 ):
     """Generate safety score analysis report"""
-    from .analytics import analyze_safety_scores
+    from .analytics_simple import analyze_safety_scores
     
     report = analyze_safety_scores(db)
     return report

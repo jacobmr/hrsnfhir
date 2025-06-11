@@ -1,35 +1,27 @@
 # app/config.py
-from pydantic_settings import BaseSettings
 import os
 
-class Settings(BaseSettings):
-    # Database
-    DATABASE_URL: str = "postgresql://hrsn_user:secure_password_123@localhost:5432/hrsn_db"
-    
-    # Redis
-    REDIS_URL: str = "redis://localhost:6379/0"
+class Settings:
+    # Database - use Railway's provided DATABASE_URL or fallback
+    DATABASE_URL: str = os.environ.get("DATABASE_URL", "postgresql://hrsn_user:secure_password_123@localhost:5432/hrsn_db")
     
     # API Configuration
     API_HOST: str = "0.0.0.0"
-    API_PORT: int = 8000
-    DEBUG: bool = True
+    API_PORT: int = int(os.environ.get("PORT", "8000"))
+    DEBUG: bool = os.environ.get("DEBUG", "False").lower() == "true"
     
     # Security
-    SECRET_KEY: str = "your-secret-key-here"
+    SECRET_KEY: str = os.environ.get("SECRET_KEY", "your-secret-key-here")
     API_KEY_HEADER: str = "X-API-Key"
-    DEFAULT_API_KEY: str = "hrsn-dev-key-12345"
+    DEFAULT_API_KEY: str = os.environ.get("DEFAULT_API_KEY", "MookieWilson")
     
     # Logging
-    LOG_LEVEL: str = "INFO"
+    LOG_LEVEL: str = os.environ.get("LOG_LEVEL", "INFO")
     LOG_FILE: str = "logs/hrsn-server.log"
     
     # FHIR Validation
     STRICT_FHIR_VALIDATION: bool = True
-    REQUIRE_ALL_SCREENING_QUESTIONS: bool = False  # Allow skipped questions
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    REQUIRE_ALL_SCREENING_QUESTIONS: bool = False
 
 settings = Settings()
 

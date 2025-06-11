@@ -19,10 +19,12 @@ class Member(Base):
     date_of_birth = Column(DateTime)
     gender = Column(String(20))
     sexual_orientation = Column(String(50))
+    address = Column(String(500))  # Full address string
     address_line1 = Column(String(200))
     city = Column(String(100))
     state = Column(String(2))
     zip_code = Column(String(10))
+    phone = Column(String(20))
     created_at = Column(DateTime, default=func.now())
     
     # Relationships
@@ -71,12 +73,15 @@ class ScreeningSession(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     member_id = Column(UUID(as_uuid=True), ForeignKey("members.id"), nullable=False)
-    encounter_id = Column(UUID(as_uuid=True), ForeignKey("encounters.id"), nullable=False)
+    encounter_id = Column(UUID(as_uuid=True), ForeignKey("encounters.id"), nullable=True)
     bundle_id = Column(String(64))
+    fhir_questionnaire_response_id = Column(String(64))
     screening_date = Column(DateTime)
     consent_given = Column(Boolean)
     screening_complete = Column(Boolean)
     total_safety_score = Column(Integer)  # Sum of questions 9-12
+    positive_screens_count = Column(Integer, default=0)
+    questions_answered = Column(Integer, default=0)
     created_at = Column(DateTime, default=func.now())
     
     # Relationships
