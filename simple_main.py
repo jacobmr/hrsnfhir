@@ -10,6 +10,8 @@ from sqlalchemy.sql import func
 from datetime import datetime, date
 import os
 import uuid
+import logging
+import re
 
 # Database setup
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -50,6 +52,304 @@ class ScreeningSession(Base):
     positive_screens_count = Column(Integer, default=0)
     questions_answered = Column(Integer, default=0)
     created_at = Column(DateTime, default=func.now())
+
+class ScreeningResponse(Base):
+    __tablename__ = "screening_responses"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    screening_session_id = Column(UUID(as_uuid=True), ForeignKey("screening_sessions.id"), nullable=False)
+    question_code = Column(String(20))
+    question_text = Column(String(500))
+    answer_code = Column(String(20))
+    answer_text = Column(String(200))
+    sdoh_category = Column(String(50))
+    positive_screen = Column(Boolean)
+    data_absent_reason = Column(String(50))
+    created_at = Column(DateTime, default=func.now())
+
+# HRSN Question Mappings - simplified version
+HRSN_QUESTION_MAPPINGS = {
+    # Safety Questions 9-12 (for scoring)
+    "95618-5": {
+        "text": "How often does anyone, including family and friends, physically hurt you",
+        "category": ["sdoh-category-unspecified"],
+        "safety_question": True,
+        "score_mapping": {
+            "LA6270-8": 1,    # Never
+            "LA10066-1": 2,   # Rarely
+            "LA10082-8": 3,   # Sometimes
+            "LA16644-9": 4,   # Fairly often
+            "LA6482-9": 5     # Frequently
+        }
+    },
+    "95617-7": {
+        "text": "How often does anyone, including family and friends, insult or talk down to you",
+        "category": ["sdoh-category-unspecified"],
+        "safety_question": True,
+        "score_mapping": {
+            "LA6270-8": 1,    # Never
+            "LA10066-1": 2,   # Rarely
+            "LA10082-8": 3,   # Sometimes
+            "LA16644-9": 4,   # Fairly often
+            "LA6482-9": 5     # Frequently
+        }
+    },
+    "95616-9": {
+        "text": "How often does anyone, including family and friends, threaten you with harm",
+        "category": ["sdoh-category-unspecified"],
+        "safety_question": True,
+        "score_mapping": {
+            "LA6270-8": 1,    # Never
+            "LA10066-1": 2,   # Rarely
+            "LA10082-8": 3,   # Sometimes
+            "LA16644-9": 4,   # Fairly often
+            "LA6482-9": 5     # Frequently
+        }
+    },
+    "95615-1": {
+        "text": "How often does anyone, including family and friends, scream or curse at you",
+        "category": ["sdoh-category-unspecified"],
+        "safety_question": True,
+        "score_mapping": {
+            "LA6270-8": 1,    # Never
+            "LA10066-1": 2,   # Rarely
+            "LA10082-8": 3,   # Sometimes
+            "LA16644-9": 4,   # Fairly often
+            "LA6482-9": 5     # Frequently
+        }
+    },
+    # Food insecurity questions
+    "88122-7": {
+        "text": "Within the past 12 months, you worried that your food would run out before you got money to buy more",
+        "category": ["food-insecurity"],
+        "positive_answers": ["LA28397-0", "LA6729-3"]  # Often true, Sometimes true
+    },
+    "88123-5": {
+        "text": "Within the past 12 months, the food you bought just didn't last and you didn't have money to get more",
+        "category": ["food-insecurity"],
+        "positive_answers": ["LA28397-0", "LA6729-3"]  # Often true, Sometimes true
+    },
+    # Transportation
+    "93030-5": {
+        "text": "In the past 12 months, has lack of reliable transportation kept you from medical appointments, meetings, work or from getting things needed for daily living",
+        "category": ["transportation-insecurity"],
+        "positive_answers": ["LA33-6"]  # Yes
+    }
+}
+
+class FHIRBundleProcessor:
+    """Simple FHIR bundle processor for basic functionality"""
+    
+    def __init__(self):
+        self.safety_questions = ["95618-5", "95617-7", "95616-9", "95615-1"]
+    
+    def process_bundle(self, bundle_dict: dict, db: Session) -> dict:
+        """Main entry point for processing FHIR bundles"""
+        try:
+            logging.info(f"Processing FHIR bundle: {bundle_dict.get('id', 'unknown')}")
+            
+            # Basic validation
+            if not isinstance(bundle_dict, dict) or bundle_dict.get("resourceType") != "Bundle":
+                raise ValueError("Invalid FHIR Bundle structure")
+            
+            bundle_id = bundle_dict.get("id")
+            entries = bundle_dict.get("entry", [])
+            
+            result = {
+                "bundle_id": bundle_id,
+                "members_processed": 0,
+                "screenings_processed": 0,
+                "status": "completed"
+            }
+            
+            # Process each resource in the bundle
+            for entry in entries:
+                resource = entry.get("resource", {})
+                resource_type = resource.get("resourceType")
+                
+                if resource_type == "Patient":
+                    self._process_member(resource, db)
+                    result["members_processed"] += 1
+                elif resource_type == "QuestionnaireResponse":
+                    self._process_questionnaire_response(resource, db)
+                    result["screenings_processed"] += 1
+            
+            db.commit()
+            logging.info(f"Successfully processed bundle {bundle_id}")
+            return result
+            
+        except Exception as e:
+            logging.error(f"Error processing bundle: {e}")
+            db.rollback()
+            raise
+    
+    def _process_member(self, patient_resource: dict, db: Session) -> Member:
+        """Process a FHIR Patient resource into a Member"""
+        fhir_id = patient_resource.get("id")
+        if not fhir_id:
+            raise ValueError("Patient resource missing ID")
+        
+        # Check for existing member
+        existing_member = db.query(Member).filter(Member.fhir_id == fhir_id).first()
+        if existing_member:
+            return existing_member
+        
+        # Extract name
+        name_data = patient_resource.get("name", [])
+        first_name = ""
+        last_name = ""
+        if name_data and isinstance(name_data, list) and len(name_data) > 0:
+            name = name_data[0]
+            given = name.get("given", [])
+            if given:
+                first_name = " ".join(given) if isinstance(given, list) else str(given)
+            last_name = name.get("family", "")
+        
+        # Extract other data
+        gender = patient_resource.get("gender", "")
+        birth_date_str = patient_resource.get("birthDate", "")
+        birth_date = None
+        if birth_date_str:
+            try:
+                birth_date = datetime.strptime(birth_date_str, "%Y-%m-%d")
+            except:
+                pass
+        
+        # Extract address
+        addresses = patient_resource.get("address", [])
+        address_line1 = ""
+        city = ""
+        state = ""
+        zip_code = ""
+        address_full = ""
+        if addresses and len(addresses) > 0:
+            addr = addresses[0]
+            lines = addr.get("line", [])
+            if lines:
+                address_line1 = lines[0] if isinstance(lines, list) else str(lines)
+            city = addr.get("city", "")
+            state = addr.get("state", "")
+            zip_code = addr.get("postalCode", "")
+            
+            # Build full address
+            parts = []
+            if address_line1:
+                parts.append(address_line1)
+            if city:
+                parts.append(city)
+            if state:
+                parts.append(state)
+            if zip_code:
+                parts.append(zip_code)
+            address_full = ", ".join(parts)
+        
+        # Create new member
+        member = Member(
+            fhir_id=fhir_id,
+            first_name=first_name,
+            last_name=last_name,
+            date_of_birth=birth_date,
+            gender=gender,
+            address=address_full,
+            address_line1=address_line1,
+            city=city,
+            state=state,
+            zip_code=zip_code
+        )
+        
+        db.add(member)
+        db.flush()  # Get the ID
+        return member
+    
+    def _process_questionnaire_response(self, qr_resource: dict, db: Session):
+        """Process a QuestionnaireResponse into screening data"""
+        session_id = qr_resource.get("id")
+        if not session_id:
+            return
+        
+        # Get member reference
+        subject_ref = qr_resource.get("subject", {}).get("reference", "")
+        if subject_ref.startswith("Patient/"):
+            member_fhir_id = subject_ref.replace("Patient/", "")
+            member = db.query(Member).filter(Member.fhir_id == member_fhir_id).first()
+            if not member:
+                logging.warning(f"Member not found for reference: {subject_ref}")
+                return
+        else:
+            logging.warning(f"Invalid subject reference: {subject_ref}")
+            return
+        
+        # Create screening session
+        authored_date_str = qr_resource.get("authored", "")
+        screening_date = datetime.utcnow()
+        if authored_date_str:
+            try:
+                screening_date = datetime.fromisoformat(authored_date_str.replace("Z", "+00:00"))
+            except:
+                pass
+        
+        screening = ScreeningSession(
+            member_id=member.id,
+            screening_date=screening_date,
+            fhir_questionnaire_response_id=session_id
+        )
+        
+        db.add(screening)
+        db.flush()  # Get the ID
+        
+        # Process responses
+        safety_score = 0
+        positive_screens = 0
+        questions_answered = 0
+        
+        items = qr_resource.get("item", [])
+        for item in items:
+            question_code = item.get("linkId")
+            question_text = item.get("text", "")
+            
+            if question_code and question_code in HRSN_QUESTION_MAPPINGS:
+                questions_answered += 1
+                
+                for answer in item.get("answer", []):
+                    answer_code = None
+                    answer_text = ""
+                    
+                    if "valueCoding" in answer:
+                        coding = answer["valueCoding"]
+                        answer_code = coding.get("code")
+                        answer_text = coding.get("display", answer_code or "")
+                    elif "valueString" in answer:
+                        answer_text = answer["valueString"]
+                    elif "valueBoolean" in answer:
+                        answer_text = "Yes" if answer["valueBoolean"] else "No"
+                    elif "valueInteger" in answer:
+                        answer_text = str(answer["valueInteger"])
+                    
+                    # Calculate safety score
+                    if question_code in self.safety_questions and answer_code:
+                        score_mapping = HRSN_QUESTION_MAPPINGS[question_code].get("score_mapping", {})
+                        if answer_code in score_mapping:
+                            safety_score += score_mapping[answer_code]
+                    
+                    # Check for positive screen
+                    positive_answers = HRSN_QUESTION_MAPPINGS[question_code].get("positive_answers", [])
+                    if answer_code in positive_answers:
+                        positive_screens += 1
+                    
+                    # Create response record
+                    response = ScreeningResponse(
+                        screening_session_id=screening.id,
+                        question_code=question_code,
+                        question_text=question_text,
+                        answer_code=answer_code,
+                        answer_text=answer_text
+                    )
+                    db.add(response)
+        
+        # Update screening with calculated values
+        screening.total_safety_score = safety_score
+        screening.positive_screens_count = positive_screens
+        screening.questions_answered = questions_answered
 
 # Database connection
 if DATABASE_URL and DATABASE_URL != "Postgres.DATABASE_URL":
@@ -334,6 +634,72 @@ async def debug_env(api_key: str = Depends(verify_api_key)):
         "DATABASE_URL": os.environ.get("DATABASE_URL", "NOT_SET"),
         "total_env_vars": len(os.environ)
     }
+
+# Initialize FHIR processor
+fhir_processor = FHIRBundleProcessor()
+
+@app.post("/api/process-bundle")
+async def process_bundle(bundle: dict, db: Session = Depends(get_db)):
+    """Process a FHIR bundle and extract data"""
+    if not db:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        logging.info(f"Received FHIR Bundle: {bundle.get('id', 'unknown')}")
+        
+        # Validate bundle structure
+        if not isinstance(bundle, dict) or bundle.get("resourceType") != "Bundle":
+            raise HTTPException(status_code=400, detail="Invalid FHIR Bundle structure")
+        
+        # Process bundle
+        result = fhir_processor.process_bundle(bundle, db)
+        
+        logging.info(f"Successfully processed bundle {result.get('bundle_id')}")
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error processing bundle: {e}")
+        raise HTTPException(status_code=500, detail=f"Processing error: {str(e)}")
+
+@app.post("/fhir/Bundle")
+async def receive_fhir_bundle(bundle: dict, db: Session = Depends(get_db), api_key: str = Depends(verify_api_key)):
+    """Receive and process FHIR Bundle containing HRSN screening data (authenticated endpoint)"""
+    if not db:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        # Generate processing ID
+        processing_id = str(uuid.uuid4())
+        
+        # Basic validation
+        if not isinstance(bundle, dict) or bundle.get("resourceType") != "Bundle":
+            raise HTTPException(status_code=400, detail="Invalid FHIR Bundle structure")
+        
+        bundle_id = bundle.get("id")
+        if not bundle_id:
+            raise HTTPException(status_code=400, detail="Bundle must have an ID")
+        
+        logging.info(f"Received FHIR Bundle {bundle_id} for processing {processing_id}")
+        
+        # Process bundle
+        result = fhir_processor.process_bundle(bundle, db)
+        
+        return {
+            "bundle_id": bundle_id,
+            "processing_id": processing_id,
+            "status": "completed",
+            "message": "Bundle processed successfully",
+            "received_at": datetime.utcnow().isoformat(),
+            "result": result
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error receiving bundle: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 if __name__ == "__main__":
     import uvicorn
