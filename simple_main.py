@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
 from datetime import datetime
 import os
 
@@ -21,9 +23,33 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-@app.get("/")
+# Mount static files
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+@app.get("/", response_class=HTMLResponse)
 async def root():
-    """Root endpoint"""
+    """Serve the main web interface"""
+    try:
+        with open("app/static/index.html", "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        # Fallback to API response if HTML file not found
+        return HTMLResponse("""
+        <!DOCTYPE html>
+        <html>
+        <head><title>HRSN FHIR Processing Server</title></head>
+        <body>
+            <h1>HRSN FHIR Processing Server</h1>
+            <p>Status: Running</p>
+            <p><a href="/docs">API Documentation</a></p>
+            <p><a href="/health">Health Check</a></p>
+        </body>
+        </html>
+        """)
+
+@app.get("/api")
+async def api_root():
+    """API endpoint for programmatic access"""
     return {
         "message": "HRSN FHIR Processing Server",
         "version": "1.0.1",
