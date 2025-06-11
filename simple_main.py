@@ -1,6 +1,17 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from datetime import datetime
 import os
+
+# Security
+security = HTTPBearer()
+DEFAULT_API_KEY = os.environ.get("DEFAULT_API_KEY", "MookieWilson")
+
+def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+    """Verify API key authentication"""
+    if credentials.credentials != DEFAULT_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    return credentials.credentials
 
 app = FastAPI(
     title="HRSN FHIR Processing Server",
@@ -41,6 +52,23 @@ async def health_check():
 async def get_members_count():
     """Get count of members (simplified for testing)"""
     return {"members_count": 0, "status": "success", "message": "Database not connected yet"}
+
+@app.get("/members")
+async def list_members(api_key: str = Depends(verify_api_key)):
+    """Get list of all members"""
+    return {"members": [], "message": "Database not yet configured with tables"}
+
+@app.get("/members/{member_id}")
+async def get_member_detail(member_id: str, api_key: str = Depends(verify_api_key)):
+    """Get detailed member information"""
+    return {
+        "member": {
+            "id": member_id,
+            "message": "Database not yet configured"
+        },
+        "assessments": [],
+        "assessment_count": 0
+    }
 
 if __name__ == "__main__":
     import uvicorn
