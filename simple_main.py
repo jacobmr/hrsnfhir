@@ -478,7 +478,7 @@ async def health_check():
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "database": db_status,
-        "version": "1.0.3",
+        "version": "1.0.4",
         "environment": {
             "port": os.environ.get("PORT", "8000"),
             "database_url_set": bool(db_url),
