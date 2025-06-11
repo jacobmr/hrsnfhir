@@ -286,6 +286,28 @@ async def get_member_detail(member_id: str, db: Session = Depends(get_db), api_k
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
+@app.get("/debug/env")
+async def debug_env(api_key: str = Depends(verify_api_key)):
+    """Debug endpoint to see environment variables"""
+    env_vars = {}
+    for key, value in os.environ.items():
+        if any(keyword in key.upper() for keyword in ["DATABASE", "POSTGRES", "DB", "SQL"]):
+            # Mask sensitive parts but show structure
+            if "URL" in key.upper() and "://" in value:
+                parts = value.split("://")
+                if len(parts) > 1:
+                    env_vars[key] = f"{parts[0]}://***masked***"
+                else:
+                    env_vars[key] = "***masked***"
+            else:
+                env_vars[key] = value[:50] + "..." if len(str(value)) > 50 else value
+    
+    return {
+        "database_env_vars": env_vars,
+        "DATABASE_URL": os.environ.get("DATABASE_URL", "NOT_SET"),
+        "total_env_vars": len(os.environ)
+    }
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "8000"))
