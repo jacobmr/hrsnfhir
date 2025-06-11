@@ -635,26 +635,270 @@ async def debug_env(api_key: str = Depends(verify_api_key)):
         "total_env_vars": len(os.environ)
     }
 
+# Original extraction functions for web interface compatibility
+def extract_bundle_data(bundle: dict) -> dict:
+    """Extract data from FHIR bundle and organize into table format"""
+    members = []
+    screenings = []
+    responses = []
+    organizations = []
+    summary = {}
+    
+    entries = bundle.get("entry", [])
+    
+    # Process each resource in the bundle
+    for entry in entries:
+        resource = entry.get("resource", {})
+        resource_type = resource.get("resourceType")
+        
+        if resource_type == "Patient":
+            members.append(extract_member_data(resource))
+        elif resource_type == "QuestionnaireResponse":
+            screening_data, response_data = extract_questionnaire_response(resource)
+            if screening_data:
+                screenings.append(screening_data)
+            responses.extend(response_data)
+        elif resource_type == "Organization":
+            organizations.append(extract_organization_data(resource))
+    
+    # Calculate summary statistics
+    if screenings:
+        summary = calculate_summary(screenings, responses)
+    
+    return {
+        "members": members,
+        "screenings": screenings,
+        "responses": responses,
+        "organizations": organizations,
+        "summary": summary
+    }
+
+def extract_member_data(member: dict) -> dict:
+    """Extract member information"""
+    name = ""
+    if member.get("name"):
+        name_obj = member["name"][0] if isinstance(member["name"], list) else member["name"]
+        given = " ".join(name_obj.get("given", []))
+        family = name_obj.get("family", "")
+        name = f"{given} {family}".strip()
+    
+    return {
+        "member_id": member.get("id"),
+        "name": name,
+        "gender": member.get("gender"),
+        "birth_date": member.get("birthDate"),
+        "address": extract_address(member.get("address", [])),
+        "phone": extract_phone(member.get("telecom", [])),
+        "created_at": datetime.utcnow().isoformat()
+    }
+
+def extract_address(addresses: list) -> str:
+    """Extract formatted address"""
+    if not addresses:
+        return ""
+    
+    addr = addresses[0]
+    parts = []
+    if addr.get("line"):
+        parts.extend(addr["line"])
+    if addr.get("city"):
+        parts.append(addr["city"])
+    if addr.get("state"):
+        parts.append(addr["state"])
+    if addr.get("postalCode"):
+        parts.append(addr["postalCode"])
+    
+    return ", ".join(parts)
+
+def extract_phone(telecoms: list) -> str:
+    """Extract phone number"""
+    for telecom in telecoms:
+        if telecom.get("system") == "phone":
+            return telecom.get("value", "")
+    return ""
+
+def extract_questionnaire_response(response: dict) -> tuple:
+    """Extract questionnaire response data"""
+    screening_data = {
+        "session_id": response.get("id"),
+        "member_id": response.get("subject", {}).get("reference", "").replace("Patient/", ""),
+        "screening_date": response.get("authored") or datetime.utcnow().isoformat(),
+        "status": response.get("status"),
+        "questionnaire": response.get("questionnaire", ""),
+        "total_safety_score": 0,
+        "questions_answered": 0,
+        "positive_screens": 0
+    }
+    
+    response_data = []
+    safety_score = 0
+    questions_answered = 0
+    positive_screens = 0
+    answered_questions = set()  # Track unique questions answered
+    
+    # Process individual question responses
+    for item in response.get("item", []):
+        question_code = item.get("linkId")
+        question_text = item.get("text", "")
+        
+        # Track that this question was answered (excluding calculated fields like safety score)
+        if question_code and item.get("answer") and question_code != "95614-4":
+            answered_questions.add(question_code)
+        
+        for answer in item.get("answer", []):
+            answer_value = None
+            answer_code = None
+            
+            if "valueCoding" in answer:
+                answer_code = answer["valueCoding"].get("code")
+                answer_value = answer["valueCoding"].get("display", answer_code)
+            elif "valueString" in answer:
+                answer_value = answer["valueString"]
+            elif "valueInteger" in answer:
+                answer_value = str(answer["valueInteger"])
+            elif "valueBoolean" in answer:
+                answer_value = "Yes" if answer["valueBoolean"] else "No"
+            
+            if answer_value:
+                # Check for positive screens (simplified logic)
+                if is_positive_screen(question_code, answer_code, answer_value):
+                    positive_screens += 1
+                
+                # Calculate safety score for questions 9-12
+                score = get_safety_score(question_code, answer_code)
+                if score:
+                    safety_score += score
+                
+                response_data.append({
+                    "session_id": screening_data["session_id"],
+                    "question_code": question_code,
+                    "question_text": question_text,
+                    "answer_code": answer_code,
+                    "answer_value": answer_value,
+                    "safety_score": score or 0,
+                    "is_positive": is_positive_screen(question_code, answer_code, answer_value)
+                })
+    
+    # Use the count of unique questions answered instead of individual answers
+    questions_answered = len(answered_questions)
+    
+    screening_data.update({
+        "total_safety_score": safety_score,
+        "questions_answered": questions_answered,
+        "positive_screens": positive_screens
+    })
+    
+    return screening_data, response_data
+
+def extract_organization_data(org: dict) -> dict:
+    """Extract organization information"""
+    return {
+        "organization_id": org.get("id"),
+        "name": org.get("name"),
+        "type": get_organization_type(org.get("type", [])),
+        "address": extract_address(org.get("address", [])),
+        "phone": extract_phone(org.get("telecom", [])),
+        "active": org.get("active", True)
+    }
+
+def get_organization_type(types: list) -> str:
+    """Extract organization type"""
+    if not types:
+        return ""
+    
+    type_obj = types[0]
+    if "coding" in type_obj:
+        coding = type_obj["coding"][0]
+        return coding.get("display", coding.get("code", ""))
+    
+    return type_obj.get("text", "")
+
+def is_positive_screen(question_code: str, answer_code: str, answer_value: str) -> bool:
+    """Determine if a response indicates a positive screen"""
+    # Simplified logic - in real implementation, this would use the mapping from config
+    positive_patterns = [
+        "worried", "threatened", "shut off", "didn't last", "run out",
+        "lack of", "help finding", "help keeping", "yes"
+    ]
+    
+    if answer_value:
+        answer_lower = answer_value.lower()
+        return any(pattern in answer_lower for pattern in positive_patterns)
+    
+    return False
+
+def get_safety_score(question_code: str, answer_code: str) -> int:
+    """Calculate safety score for questions 9-12"""
+    # Safety questions mapping (simplified)
+    safety_mappings = {
+        "LA6270-8": 1,    # Never
+        "LA10066-1": 2,   # Rarely
+        "LA10082-8": 3,   # Sometimes
+        "LA16644-9": 4,   # Fairly often
+        "LA6482-9": 5     # Frequently
+    }
+    
+    # Check if this is a safety question (9-12) by question code
+    safety_questions = ["95618-5", "95617-7", "95616-9", "95615-1"]
+    
+    if question_code in safety_questions and answer_code in safety_mappings:
+        return safety_mappings[answer_code]
+    
+    return 0
+
+def calculate_summary(screenings: list, responses: list) -> dict:
+    """Calculate summary statistics"""
+    if not screenings:
+        return {}
+    
+    screening = screenings[0]  # Assuming one screening session per bundle
+    
+    return {
+        "total_safety_score": screening.get("total_safety_score", 0),
+        "high_risk": screening.get("total_safety_score", 0) >= 11,
+        "positive_screens": screening.get("positive_screens", 0),
+        "questions_answered": screening.get("questions_answered", 0),
+        "completion_rate": round((screening.get("questions_answered", 0) / 12) * 100, 1)
+    }
+
 # Initialize FHIR processor
 fhir_processor = FHIRBundleProcessor()
 
 @app.post("/api/process-bundle")
 async def process_bundle(bundle: dict, db: Session = Depends(get_db)):
-    """Process a FHIR bundle and extract data"""
-    if not db:
-        raise HTTPException(status_code=503, detail="Database not available")
-    
+    """Process a FHIR bundle and extract data into table format (for web interface)"""
     try:
-        logging.info(f"Received FHIR Bundle: {bundle.get('id', 'unknown')}")
+        logging.info(f"Processing FHIR bundle: {bundle.get('id', 'unknown')}")
         
         # Validate bundle structure
         if not isinstance(bundle, dict) or bundle.get("resourceType") != "Bundle":
             raise HTTPException(status_code=400, detail="Invalid FHIR Bundle structure")
         
-        # Process bundle
-        result = fhir_processor.process_bundle(bundle, db)
+        # Extract bundle information
+        bundle_info = {
+            "id": bundle.get("id"),
+            "type": bundle.get("type"),
+            "total": len(bundle.get("entry", []))
+        }
         
-        logging.info(f"Successfully processed bundle {result.get('bundle_id')}")
+        # Process bundle entries using original logic
+        result = extract_bundle_data(bundle)
+        result["bundle_info"] = bundle_info
+        
+        # If database is available, also save to database
+        if db:
+            try:
+                db_result = fhir_processor.process_bundle(bundle, db)
+                result["database_saved"] = True
+                result["db_result"] = db_result
+            except Exception as e:
+                logging.warning(f"Database save failed: {e}")
+                result["database_saved"] = False
+                result["db_error"] = str(e)
+        else:
+            result["database_saved"] = False
+        
+        logging.info(f"Successfully processed bundle {bundle_info['id']}")
         return result
         
     except HTTPException:
