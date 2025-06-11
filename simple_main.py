@@ -290,8 +290,9 @@ async def get_member_detail(member_id: str, db: Session = Depends(get_db), api_k
 async def debug_env(api_key: str = Depends(verify_api_key)):
     """Debug endpoint to see environment variables"""
     env_vars = {}
+    # Show all environment variables that might be related to database
     for key, value in os.environ.items():
-        if any(keyword in key.upper() for keyword in ["DATABASE", "POSTGRES", "DB", "SQL"]):
+        if any(keyword in key.upper() for keyword in ["DATABASE", "POSTGRES", "DB", "SQL", "PG"]):
             # Mask sensitive parts but show structure
             if "URL" in key.upper() and "://" in value:
                 parts = value.split("://")
@@ -302,8 +303,15 @@ async def debug_env(api_key: str = Depends(verify_api_key)):
             else:
                 env_vars[key] = value[:50] + "..." if len(str(value)) > 50 else value
     
+    # Also show Railway-specific variables
+    railway_vars = {}
+    for key, value in os.environ.items():
+        if key.startswith("RAILWAY") or "SERVICE" in key.upper():
+            railway_vars[key] = value[:50] + "..." if len(str(value)) > 50 else value
+    
     return {
         "database_env_vars": env_vars,
+        "railway_vars": railway_vars,
         "DATABASE_URL": os.environ.get("DATABASE_URL", "NOT_SET"),
         "total_env_vars": len(os.environ)
     }
