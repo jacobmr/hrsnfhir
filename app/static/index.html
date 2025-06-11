@@ -12,7 +12,7 @@
             background-color: #f5f7fa;
         }
         .header {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            background: linear-gradient(135deg, #2d5a3d 0%, #3a6b47 100%);
             color: white;
             padding: 30px;
             border-radius: 10px;
@@ -59,7 +59,7 @@
             height: fit-content;
         }
         .upload-area {
-            border: 3px dashed #28a745;
+            border: 3px dashed #2d5a3d;
             border-radius: 10px;
             padding: 40px;
             text-align: center;
@@ -68,11 +68,11 @@
             background: #f8fff9;
         }
         .upload-area:hover {
-            border-color: #20c997;
+            border-color: #3a6b47;
             background-color: #e8f5e8;
         }
         .upload-area.dragover {
-            border-color: #20c997;
+            border-color: #3a6b47;
             background-color: #d4edda;
         }
         .upload-area.processing {
@@ -83,7 +83,7 @@
             display: none;
         }
         .upload-btn {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            background: linear-gradient(135deg, #2d5a3d 0%, #3a6b47 100%);
             color: white;
             padding: 12px 30px;
             border: none;
@@ -134,7 +134,7 @@
         }
         .spinner {
             border: 3px solid #f3f3f3;
-            border-top: 3px solid #28a745;
+            border-top: 3px solid #2d5a3d;
             border-radius: 50%;
             width: 30px;
             height: 30px;
@@ -151,20 +151,20 @@
             border-radius: 5px;
             margin: 10px 0;
             display: none;
-            border-left: 4px solid #28a745;
+            border-left: 4px solid #2d5a3d;
         }
         .section-title {
             color: #495057;
             font-size: 1.2em;
             font-weight: 600;
             margin-bottom: 15px;
-            border-bottom: 2px solid #28a745;
+            border-bottom: 2px solid #2d5a3d;
             padding-bottom: 10px;
         }
         
         /* Chatbot Styles */
         .chat-container {
-            border: 1px solid #28a745;
+            border: 1px solid #2d5a3d;
             border-radius: 8px;
             background: white;
             overflow: hidden;
@@ -182,32 +182,32 @@
             line-height: 1.4;
         }
         .chat-message.user {
-            background: #28a745;
+            background: #2d5a3d;
             color: white;
             margin-left: 50px;
         }
         .chat-message.bot {
             background: white;
-            border: 1px solid #28a745;
+            border: 1px solid #2d5a3d;
             margin-right: 50px;
         }
         .chat-input-container {
             display: flex;
             padding: 15px;
             background: white;
-            border-top: 1px solid #28a745;
+            border-top: 1px solid #2d5a3d;
         }
         .chat-input-container input {
             flex: 1;
             padding: 12px;
-            border: 1px solid #28a745;
+            border: 1px solid #2d5a3d;
             border-radius: 4px;
             margin-right: 10px;
             font-size: 14px;
         }
         .chat-input-container button {
             padding: 12px 20px;
-            background: #28a745;
+            background: #2d5a3d;
             color: white;
             border: none;
             border-radius: 4px;
@@ -215,14 +215,14 @@
             font-weight: 600;
         }
         .chat-input-container button:hover {
-            background: #20c997;
+            background: #3a6b47;
         }
         .chat-input-container button:disabled {
             background: #ccc;
             cursor: not-allowed;
         }
         .member-link {
-            color: #28a745;
+            color: #2d5a3d;
             text-decoration: none;
             font-weight: 500;
         }
@@ -240,15 +240,15 @@
         /* Clean Results Styling */
         .result-card {
             background: #f8fff9;
-            border: 1px solid #28a745;
+            border: 1px solid #2d5a3d;
             border-radius: 8px;
             padding: 20px;
             margin-bottom: 20px;
         }
         .result-card h4 {
-            color: #28a745;
+            color: #2d5a3d;
             margin-top: 0;
-            border-bottom: 2px solid #28a745;
+            border-bottom: 2px solid #2d5a3d;
             padding-bottom: 10px;
         }
         .metric-grid {
@@ -267,7 +267,7 @@
         .metric-value {
             font-size: 1.5em;
             font-weight: bold;
-            color: #28a745;
+            color: #2d5a3d;
         }
         .metric-label {
             color: #666;
@@ -282,7 +282,7 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .data-table th {
-            background: #28a745;
+            background: #2d5a3d;
             color: white;
             padding: 12px;
             text-align: left;
@@ -319,6 +319,14 @@
     <div class="header">
         <h1>HRSN FHIR Bundle Processor</h1>
         <p>Upload and process FHIR bundles for Health-Related Social Needs screening</p>
+        <div style="background: rgba(255, 255, 255, 0.15); padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
+            <h3 style="margin: 0 0 8px 0; color: #fff3cd;">⚠️ DEMO SITE ONLY</h3>
+            <p style="margin: 0; font-size: 0.95em; opacity: 0.95;">
+                This is a demonstration site for parsing FHIR screening data. 
+                <strong>Never upload real PHI (Protected Health Information) here.</strong> 
+                Use only synthetic or de-identified test data.
+            </p>
+        </div>
         <div class="nav-links">
             <a href="/" class="nav-link">🏠 Home</a>
             <a href="/static/members.html" class="nav-link">👥 Members</a>
@@ -556,7 +564,7 @@
             // Summary Card
             if (data.summary) {
                 const riskLevel = data.summary.high_risk ? 'HIGH RISK' : 'Low Risk';
-                const riskColor = data.summary.high_risk ? '#dc3545' : '#28a745';
+                const riskColor = data.summary.high_risk ? '#dc3545' : '#2d5a3d';
                 
                 html += `
                     <div class="result-card">

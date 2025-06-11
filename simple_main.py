@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from sqlalchemy import create_engine, text, Column, String, Integer, Boolean, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
@@ -12,6 +12,8 @@ import os
 import uuid
 import logging
 import re
+import csv
+import io
 
 # Database setup
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -726,6 +728,100 @@ async def get_assessment_detail(assessment_id: str, db: Session = Depends(get_db
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+@app.get("/members/export/csv")
+async def export_members_csv(db: Session = Depends(get_db), api_key: str = Depends(verify_api_key)):
+    """Export all members and their assessment data to CSV format"""
+    if not db:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        # Get all members with their assessment details
+        members = db.query(Member).limit(1000).all()  # Limit to prevent huge exports
+        
+        # Create CSV in memory
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow([
+            'Member ID',
+            'Name',
+            'First Name', 
+            'Last Name',
+            'Age',
+            'Date of Birth',
+            'Gender',
+            'Address',
+            'City',
+            'State',
+            'Zip Code',
+            'Phone',
+            'MRN',
+            'Total Assessments',
+            'Latest Assessment Date',
+            'Latest Safety Score',
+            'High Risk',
+            'Latest Positive Screens',
+            'Latest Questions Answered',
+            'Created At'
+        ])
+        
+        # Write member data
+        for member in members:
+            # Calculate age
+            age = None
+            if member.date_of_birth:
+                today = date.today()
+                birth_date = member.date_of_birth.date() if hasattr(member.date_of_birth, 'date') else member.date_of_birth
+                age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+            
+            # Get latest assessment data
+            latest_screening = db.query(ScreeningSession).filter(
+                ScreeningSession.member_id == member.id
+            ).order_by(ScreeningSession.screening_date.desc()).first()
+            
+            total_assessments = db.query(ScreeningSession).filter(ScreeningSession.member_id == member.id).count()
+            
+            # Prepare row data
+            row = [
+                str(member.id),
+                f"{member.first_name or ''} {member.last_name or ''}".strip() or 'Unknown',
+                member.first_name or '',
+                member.last_name or '',
+                age or '',
+                member.date_of_birth.isoformat() if member.date_of_birth else '',
+                member.gender or '',
+                member.address or '',
+                member.city or '',
+                member.state or '',
+                member.zip_code or '',
+                member.phone or '',
+                member.mrn or '',
+                total_assessments,
+                latest_screening.screening_date.isoformat() if latest_screening and latest_screening.screening_date else '',
+                latest_screening.total_safety_score if latest_screening else '',
+                'Yes' if latest_screening and latest_screening.total_safety_score and latest_screening.total_safety_score >= 11 else 'No',
+                latest_screening.positive_screens_count if latest_screening else '',
+                latest_screening.questions_answered if latest_screening else '',
+                member.created_at.isoformat() if member.created_at else ''
+            ]
+            
+            writer.writerow(row)
+        
+        # Create response
+        output.seek(0)
+        response = StreamingResponse(
+            io.BytesIO(output.getvalue().encode('utf-8')), 
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=members_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"}
+        )
+        
+        return response
+        
+    except Exception as e:
+        logging.error(f"Error exporting CSV: {e}")
+        raise HTTPException(status_code=500, detail=f"Export error: {str(e)}")
 
 @app.get("/debug/env")
 async def debug_env(api_key: str = Depends(verify_api_key)):

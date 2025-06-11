@@ -12,7 +12,7 @@
             background-color: #f5f7fa;
         }
         .header {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            background: linear-gradient(135deg, #2d5a3d 0%, #3a6b47 100%);
             color: white;
             padding: 30px;
             border-radius: 10px;
@@ -61,7 +61,7 @@
             font-size: 1.5em;
             font-weight: 600;
             margin-bottom: 20px;
-            border-bottom: 3px solid #28a745;
+            border-bottom: 3px solid #2d5a3d;
             padding-bottom: 10px;
         }
         .stats-grid {
@@ -72,7 +72,7 @@
         }
         .stat-card {
             background: #f8fff9;
-            border: 1px solid #28a745;
+            border: 1px solid #2d5a3d;
             border-radius: 8px;
             padding: 20px;
             text-align: center;
@@ -80,7 +80,7 @@
         .stat-value {
             font-size: 2em;
             font-weight: bold;
-            color: #28a745;
+            color: #2d5a3d;
             margin-bottom: 5px;
         }
         .stat-label {
@@ -98,23 +98,23 @@
             flex: 1;
             min-width: 250px;
             padding: 12px;
-            border: 2px solid #28a745;
+            border: 2px solid #2d5a3d;
             border-radius: 5px;
             font-size: 16px;
         }
         .search-input:focus {
             outline: none;
-            border-color: #20c997;
+            border-color: #3a6b47;
         }
         .filter-select {
             padding: 12px;
-            border: 2px solid #28a745;
+            border: 2px solid #2d5a3d;
             border-radius: 5px;
             font-size: 16px;
             background: white;
         }
         .refresh-btn {
-            background: #28a745;
+            background: #2d5a3d;
             color: white;
             border: none;
             padding: 12px 20px;
@@ -124,7 +124,7 @@
             transition: all 0.3s ease;
         }
         .refresh-btn:hover {
-            background: #20c997;
+            background: #3a6b47;
         }
         .members-table {
             width: 100%;
@@ -135,7 +135,7 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         .members-table th {
-            background: #28a745;
+            background: #2d5a3d;
             color: white;
             padding: 15px 12px;
             text-align: left;
@@ -154,7 +154,7 @@
             border-bottom: none;
         }
         .member-link {
-            color: #28a745;
+            color: #2d5a3d;
             text-decoration: none;
             font-weight: 600;
         }
@@ -163,7 +163,7 @@
         }
         .age-badge {
             background: #e8f5e8;
-            color: #28a745;
+            color: #2d5a3d;
             padding: 4px 8px;
             border-radius: 12px;
             font-size: 0.85em;
@@ -197,7 +197,7 @@
         }
         .spinner {
             border: 3px solid #f3f3f3;
-            border-top: 3px solid #28a745;
+            border-top: 3px solid #2d5a3d;
             border-radius: 50%;
             width: 30px;
             height: 30px;
@@ -214,7 +214,7 @@
             color: #666;
         }
         .empty-state h3 {
-            color: #28a745;
+            color: #2d5a3d;
             margin-bottom: 10px;
         }
         .status-message {
@@ -237,7 +237,7 @@
             text-align: center;
         }
         .assessments-count {
-            background: #20c997;
+            background: #3a6b47;
             color: white;
             padding: 4px 8px;
             border-radius: 12px;
@@ -311,6 +311,7 @@
                 <option value="low">Low Risk Only</option>
             </select>
             <button class="refresh-btn" onclick="loadMembers()">🔄 Refresh</button>
+            <button class="refresh-btn" onclick="downloadMembersCSV()" style="background: #6c757d;">📊 Download CSV</button>
         </div>
 
         <div class="status-message" id="statusMessage"></div>
@@ -460,7 +461,7 @@
 
             filteredMembers.forEach(member => {
                 const riskLevel = member.high_risk ? 'HIGH RISK' : 'Low Risk';
-                const riskColor = member.high_risk ? '#dc3545' : '#28a745';
+                const riskColor = member.high_risk ? '#dc3545' : '#2d5a3d';
                 const age = member.age !== null && member.age !== undefined ? member.age : 'N/A';
                 const zipCode = member.zip_code || 'N/A';
                 
@@ -559,6 +560,39 @@
             setTimeout(() => {
                 statusEl.style.display = 'none';
             }, 5000);
+        }
+
+        async function downloadMembersCSV() {
+            try {
+                showStatus('Preparing CSV download...', 'success');
+                
+                const response = await fetch('/members/export/csv', {
+                    headers: {
+                        'Authorization': 'Bearer MookieWilson'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                // Get the blob and create download link
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `members_export_${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                showStatus('CSV download completed successfully', 'success');
+                
+            } catch (error) {
+                console.error('Error downloading CSV:', error);
+                showStatus(`Error downloading CSV: ${error.message}`, 'error');
+            }
         }
     </script>
 </body>

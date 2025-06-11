@@ -4,9 +4,11 @@ A comprehensive Health-Related Social Needs (HRSN) FHIR Bundle Processing Server
 
 ## 🌐 Live Deployment
 
-**Web Interface**: [https://hrsnfhir-production.up.railway.app/](https://hrsnfhir-production.up.railway.app/)
+**Web Interface**: [https://fhir.sharemy.org/](https://fhir.sharemy.org/)
 
-**API Documentation**: [https://hrsnfhir-production.up.railway.app/docs](https://hrsnfhir-production.up.railway.app/docs)
+**API Documentation**: [https://fhir.sharemy.org/docs](https://fhir.sharemy.org/docs)
+
+**Alternative URL**: [https://hrsnfhir-production.up.railway.app/](https://hrsnfhir-production.up.railway.app/)
 
 ## ✨ Features
 
@@ -27,9 +29,13 @@ A comprehensive Health-Related Social Needs (HRSN) FHIR Bundle Processing Server
 
 ### 🌐 Web Interface
 - **File Upload**: Drag & drop or click to select FHIR JSON bundles
+- **Auto-Processing**: Files process automatically upon upload
 - **Real-time Processing**: Live feedback during bundle processing
-- **Results Display**: Structured display of processed data
+- **Results Display**: Structured display of processed data with clean card-based design
 - **Member Browser**: View and search members with assessment history
+- **Assessment Details**: Click-through navigation to individual assessment responses
+- **CSV Export**: Download member data for analysis
+- **Demo Site Warning**: Clear PHI protection messaging for demonstration use
 - **Responsive Design**: Works on desktop and mobile devices
 
 ### 🔌 REST API
@@ -43,7 +49,7 @@ A comprehensive Health-Related Social Needs (HRSN) FHIR Bundle Processing Server
 
 ### Using the Web Interface
 
-1. **Visit the Application**: Go to [https://hrsnfhir-production.up.railway.app/](https://hrsnfhir-production.up.railway.app/)
+1. **Visit the Application**: Go to [https://fhir.sharemy.org/](https://fhir.sharemy.org/)
 
 2. **Upload FHIR Bundle**: 
    - Drag and drop a FHIR JSON file onto the upload area, or
@@ -65,7 +71,7 @@ Authorization: Bearer MookieWilson
 
 #### Submit FHIR Bundle
 ```bash
-curl -X POST "https://hrsnfhir-production.up.railway.app/fhir/Bundle" \
+curl -X POST "https://fhir.sharemy.org/fhir/Bundle" \
   -H "Authorization: Bearer MookieWilson" \
   -H "Content-Type: application/json" \
   -d @your-fhir-bundle.json
@@ -73,14 +79,21 @@ curl -X POST "https://hrsnfhir-production.up.railway.app/fhir/Bundle" \
 
 #### Get Members List
 ```bash
-curl -X GET "https://hrsnfhir-production.up.railway.app/members" \
+curl -X GET "https://fhir.sharemy.org/members" \
   -H "Authorization: Bearer MookieWilson"
 ```
 
 #### Get Member Details
 ```bash
-curl -X GET "https://hrsnfhir-production.up.railway.app/members/{member_id}" \
+curl -X GET "https://fhir.sharemy.org/members/{member_id}" \
   -H "Authorization: Bearer MookieWilson"
+```
+
+#### Export Members CSV
+```bash
+curl -X GET "https://fhir.sharemy.org/members/export/csv" \
+  -H "Authorization: Bearer MookieWilson" \
+  --output members_export.csv
 ```
 
 ## 📚 API Reference
@@ -101,6 +114,9 @@ curl -X GET "https://hrsnfhir-production.up.railway.app/members/{member_id}" \
 |--------|----------|-------------|---------------|
 | `GET` | `/members` | List all members | ✅ |
 | `GET` | `/members/{id}` | Get member details | ✅ |
+| `DELETE` | `/members/{id}` | Delete member and data | ✅ |
+| `GET` | `/members/export/csv` | Export members to CSV | ✅ |
+| `GET` | `/assessments/{id}` | Get assessment details | ✅ |
 | `POST` | `/fhir/Bundle` | Submit FHIR bundle | ✅ |
 
 ## 🏗️ Technical Architecture
@@ -343,7 +359,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### Contact
 - **Repository**: [https://github.com/jacobmr/hrsnfhir](https://github.com/jacobmr/hrsnfhir)
-- **Live Application**: [https://hrsnfhir-production.up.railway.app/](https://hrsnfhir-production.up.railway.app/)
+- **Live Application**: [https://fhir.sharemy.org/](https://fhir.sharemy.org/)
 
 ---
 
