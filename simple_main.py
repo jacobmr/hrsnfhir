@@ -605,6 +605,49 @@ async def get_member_detail(member_id: str, db: Session = Depends(get_db), api_k
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
+@app.delete("/members/{member_id}")
+async def delete_member(member_id: str, db: Session = Depends(get_db), api_key: str = Depends(verify_api_key)):
+    """Delete a member and all associated data"""
+    if not db:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        # Check if member exists
+        member = db.query(Member).filter(Member.id == member_id).first()
+        if not member:
+            raise HTTPException(status_code=404, detail="Member not found")
+        
+        # Get member name for response
+        member_name = f"{member.first_name or ''} {member.last_name or ''}".strip()
+        if not member_name:
+            member_name = f"Member {member_id[:8]}"
+        
+        # Delete screening responses first (due to foreign key constraints)
+        screening_sessions = db.query(ScreeningSession).filter(ScreeningSession.member_id == member.id).all()
+        for session in screening_sessions:
+            db.query(ScreeningResponse).filter(ScreeningResponse.screening_session_id == session.id).delete()
+        
+        # Delete screening sessions
+        db.query(ScreeningSession).filter(ScreeningSession.member_id == member.id).delete()
+        
+        # Delete the member
+        db.delete(member)
+        db.commit()
+        
+        return {
+            "message": f"Member {member_name} deleted successfully",
+            "deleted_member": {
+                "id": str(member.id),
+                "name": member_name
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
 @app.get("/debug/env")
 async def debug_env(api_key: str = Depends(verify_api_key)):
     """Debug endpoint to see environment variables"""

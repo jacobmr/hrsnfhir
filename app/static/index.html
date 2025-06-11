@@ -7,13 +7,12 @@
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
+            margin: 0;
             padding: 20px;
             background-color: #f5f7fa;
         }
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             color: white;
             padding: 30px;
             border-radius: 10px;
@@ -28,34 +27,63 @@
             margin: 10px 0 0 0;
             opacity: 0.9;
         }
+        .nav-links {
+            margin-top: 20px;
+        }
+        .nav-link {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+        }
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
         .container {
             background: white;
             padding: 30px;
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
+            height: fit-content;
         }
         .upload-area {
-            border: 3px dashed #ddd;
+            border: 3px dashed #28a745;
             border-radius: 10px;
             padding: 40px;
             text-align: center;
             transition: all 0.3s ease;
             margin-bottom: 20px;
+            background: #f8fff9;
         }
         .upload-area:hover {
-            border-color: #667eea;
-            background-color: #f8f9ff;
+            border-color: #20c997;
+            background-color: #e8f5e8;
         }
         .upload-area.dragover {
-            border-color: #667eea;
-            background-color: #f0f2ff;
+            border-color: #20c997;
+            background-color: #d4edda;
+        }
+        .upload-area.processing {
+            border-color: #ffc107;
+            background-color: #fff3cd;
         }
         input[type="file"] {
             display: none;
         }
         .upload-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             color: white;
             padding: 12px 30px;
             border: none;
@@ -67,24 +95,6 @@
         .upload-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
-        .process-btn {
-            background: #28a745;
-            color: white;
-            padding: 12px 30px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            margin-left: 10px;
-            transition: all 0.3s ease;
-        }
-        .process-btn:hover {
-            background: #218838;
-        }
-        .process-btn:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
         }
         .status {
             padding: 15px;
@@ -107,26 +117,16 @@
             border: 1px solid #bee5eb;
             color: #0c5460;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        th {
-            background-color: #f8f9fa;
-            font-weight: 600;
-            color: #495057;
-        }
-        tr:hover {
-            background-color: #f8f9fa;
-        }
         .results-section {
             display: none;
+            grid-column: 1 / -1;
+            margin-top: 20px;
+        }
+        .results-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         .loading {
             text-align: center;
@@ -134,7 +134,7 @@
         }
         .spinner {
             border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
+            border-top: 3px solid #28a745;
             border-radius: 50%;
             width: 30px;
             height: 30px;
@@ -146,24 +146,25 @@
             100% { transform: rotate(360deg); }
         }
         .file-info {
-            background: #f8f9fa;
+            background: #e8f5e8;
             padding: 15px;
             border-radius: 5px;
             margin: 10px 0;
             display: none;
+            border-left: 4px solid #28a745;
         }
         .section-title {
             color: #495057;
             font-size: 1.2em;
             font-weight: 600;
             margin-bottom: 15px;
-            border-bottom: 2px solid #e9ecef;
+            border-bottom: 2px solid #28a745;
             padding-bottom: 10px;
         }
         
         /* Chatbot Styles */
         .chat-container {
-            border: 1px solid #ddd;
+            border: 1px solid #28a745;
             border-radius: 8px;
             background: white;
             overflow: hidden;
@@ -172,7 +173,7 @@
             height: 400px;
             overflow-y: auto;
             padding: 20px;
-            background: #f8f9fa;
+            background: #f8fff9;
         }
         .chat-message {
             margin-bottom: 15px;
@@ -181,32 +182,32 @@
             line-height: 1.4;
         }
         .chat-message.user {
-            background: #667eea;
+            background: #28a745;
             color: white;
             margin-left: 50px;
         }
         .chat-message.bot {
             background: white;
-            border: 1px solid #ddd;
+            border: 1px solid #28a745;
             margin-right: 50px;
         }
         .chat-input-container {
             display: flex;
             padding: 15px;
             background: white;
-            border-top: 1px solid #ddd;
+            border-top: 1px solid #28a745;
         }
         .chat-input-container input {
             flex: 1;
             padding: 12px;
-            border: 1px solid #ddd;
+            border: 1px solid #28a745;
             border-radius: 4px;
             margin-right: 10px;
             font-size: 14px;
         }
         .chat-input-container button {
             padding: 12px 20px;
-            background: #667eea;
+            background: #28a745;
             color: white;
             border: none;
             border-radius: 4px;
@@ -214,26 +215,103 @@
             font-weight: 600;
         }
         .chat-input-container button:hover {
-            background: #5a6fd8;
+            background: #20c997;
         }
         .chat-input-container button:disabled {
             background: #ccc;
             cursor: not-allowed;
         }
-        .patient-link {
-            color: #667eea;
+        .member-link {
+            color: #28a745;
             text-decoration: none;
             font-weight: 500;
         }
-        .patient-link:hover {
+        .member-link:hover {
             text-decoration: underline;
         }
         .chat-data {
             margin-top: 10px;
             padding: 10px;
-            background: #f8f9fa;
+            background: #f8fff9;
             border-radius: 4px;
             font-size: 0.9em;
+        }
+
+        /* Clean Results Styling */
+        .result-card {
+            background: #f8fff9;
+            border: 1px solid #28a745;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .result-card h4 {
+            color: #28a745;
+            margin-top: 0;
+            border-bottom: 2px solid #28a745;
+            padding-bottom: 10px;
+        }
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+        .metric-item {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+            border: 1px solid #e0e0e0;
+        }
+        .metric-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #28a745;
+        }
+        .metric-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .data-table th {
+            background: #28a745;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .data-table tr:hover {
+            background: #f8fff9;
+        }
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            .header h1 {
+                font-size: 2em;
+            }
+            .nav-link {
+                display: block;
+                margin: 5px 0;
+            }
         }
     </style>
 </head>
@@ -241,65 +319,72 @@
     <div class="header">
         <h1>HRSN FHIR Bundle Processor</h1>
         <p>Upload and process FHIR bundles for Health-Related Social Needs screening</p>
+        <div class="nav-links">
+            <a href="/" class="nav-link">🏠 Home</a>
+            <a href="/static/members.html" class="nav-link">👥 Members</a>
+            <a href="/docs" class="nav-link">📚 API Docs</a>
+            <a href="/health" class="nav-link">💚 Health</a>
+        </div>
     </div>
 
-    <div class="container">
-        <div class="section-title">📁 File Upload</div>
-        
-        <div class="upload-area" id="uploadArea">
-            <div>
-                <p style="font-size: 18px; margin-bottom: 15px;">📄 Drop your FHIR JSON file here or click to select</p>
-                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
-                    Choose File
-                </button>
-                <input type="file" id="fileInput" accept=".json" onchange="handleFileSelect(event)">
-            </div>
-        </div>
-
-        <div class="file-info" id="fileInfo">
-            <strong>Selected file:</strong> <span id="fileName"></span><br>
-            <strong>Size:</strong> <span id="fileSize"></span><br>
-            <strong>Type:</strong> <span id="fileType"></span>
-        </div>
-
-        <div style="text-align: center; margin-top: 20px;">
-            <button class="process-btn" id="processBtn" onclick="processFile()" disabled>
-                🚀 Process FHIR Bundle
-            </button>
-        </div>
-
-        <div class="status" id="statusMessage"></div>
-    </div>
-
-    <!-- Chatbot Section -->
-    <div class="container">
-        <div class="section-title">🤖 Patient Data Chatbot</div>
-        <p>Ask questions about the patient data. Examples: "How many patients have food insecurity?" or "Who are the high risk patients?"</p>
-        
-        <div class="chat-container">
-            <div class="chat-messages" id="chatMessages">
-                <div class="chat-message bot">
-                    <strong>HRSN Chatbot:</strong> Hello! I can answer questions about patient data. Upload some FHIR bundles first, then ask me anything!
+    <div class="main-layout">
+        <!-- Left Side - File Upload -->
+        <div class="container">
+            <div class="section-title">📁 FHIR Bundle Upload</div>
+            
+            <div class="upload-area" id="uploadArea">
+                <div>
+                    <p style="font-size: 18px; margin-bottom: 15px;">📄 Drop your FHIR JSON file here or click to select</p>
+                    <p style="color: #666; margin-bottom: 15px;">Files will be processed automatically upon upload</p>
+                    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                        Choose File
+                    </button>
+                    <input type="file" id="fileInput" accept=".json" onchange="handleFileSelect(event)">
                 </div>
             </div>
+
+            <div class="file-info" id="fileInfo">
+                <strong>Selected file:</strong> <span id="fileName"></span><br>
+                <strong>Size:</strong> <span id="fileSize"></span><br>
+                <strong>Status:</strong> <span id="fileStatus">Ready to process</span>
+            </div>
+
+            <div class="status" id="statusMessage"></div>
+        </div>
+
+        <!-- Right Side - Chatbot -->
+        <div class="container">
+            <div class="section-title">🤖 Member Data Assistant</div>
+            <p>Ask questions about member data. Examples: "How many members have food insecurity?" or "Who are the high risk members?"</p>
             
-            <div class="chat-input-container">
-                <input type="text" id="chatInput" placeholder="Ask a question about patient data..." 
-                       onkeypress="handleChatKeyPress(event)">
-                <button onclick="sendChatMessage()" id="chatSendBtn">Send</button>
+            <div class="chat-container">
+                <div class="chat-messages" id="chatMessages">
+                    <div class="chat-message bot">
+                        <strong>HRSN Assistant:</strong> Hello! I can answer questions about member data. Upload some FHIR bundles first, then ask me anything!
+                    </div>
+                </div>
+                
+                <div class="chat-input-container">
+                    <input type="text" id="chatInput" placeholder="Ask a question about member data..." 
+                           onkeypress="handleChatKeyPress(event)">
+                    <button onclick="sendChatMessage()" id="chatSendBtn">Send</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="container results-section" id="resultsSection">
-        <div class="section-title">📊 Processing Results</div>
-        
-        <div id="loadingIndicator" class="loading" style="display: none;">
-            <div class="spinner"></div>
-            <p>Processing FHIR bundle...</p>
-        </div>
+    <!-- Results Section (Full Width) -->
+    <div class="results-section" id="resultsSection">
+        <div class="results-container">
+            <div class="section-title">📊 Processing Results</div>
+            
+            <div id="loadingIndicator" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Processing FHIR bundle...</p>
+            </div>
 
-        <div id="resultsContent"></div>
+            <div id="resultsContent"></div>
+        </div>
     </div>
 
     <script>
@@ -342,11 +427,14 @@
             selectedFile = file;
             document.getElementById('fileName').textContent = file.name;
             document.getElementById('fileSize').textContent = formatFileSize(file.size);
-            document.getElementById('fileType').textContent = file.type || 'application/json';
+            document.getElementById('fileStatus').textContent = 'Processing...';
             document.getElementById('fileInfo').style.display = 'block';
-            document.getElementById('processBtn').disabled = false;
             
-            showStatus('File selected successfully. Ready to process.', 'success');
+            uploadArea.classList.add('processing');
+            showStatus('File selected. Processing automatically...', 'info');
+            
+            // Auto-process the file
+            processFile();
         }
 
         function formatFileSize(bytes) {
@@ -367,7 +455,6 @@
             document.getElementById('loadingIndicator').style.display = 'block';
             document.getElementById('resultsSection').style.display = 'block';
             document.getElementById('resultsContent').innerHTML = '';
-            document.getElementById('processBtn').disabled = true;
 
             try {
                 // Read file content
@@ -393,6 +480,8 @@
 
                 if (response.ok) {
                     showStatus('FHIR bundle processed successfully!', 'success');
+                    document.getElementById('fileStatus').textContent = 'Processed successfully';
+                    uploadArea.classList.remove('processing');
                     displayResults(result);
                 } else {
                     throw new Error(result.detail || 'Processing failed');
@@ -401,10 +490,11 @@
             } catch (error) {
                 console.error('Error:', error);
                 showStatus(`Error: ${error.message}`, 'error');
+                document.getElementById('fileStatus').textContent = 'Processing failed';
+                uploadArea.classList.remove('processing');
                 document.getElementById('resultsSection').style.display = 'none';
             } finally {
                 document.getElementById('loadingIndicator').style.display = 'none';
-                document.getElementById('processBtn').disabled = false;
             }
         }
 
@@ -434,62 +524,94 @@
         function displayResults(data) {
             const resultsContent = document.getElementById('resultsContent');
             
-            let html = '<div class="section-title">📋 Extracted Data</div>';
+            let html = '';
             
-            // Display bundle info
+            // Bundle Info Card
             if (data.bundle_info) {
                 html += `
-                    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-                        <h4 style="margin-top: 0;">Bundle Information</h4>
-                        <p><strong>Bundle ID:</strong> ${data.bundle_info.id || 'N/A'}</p>
-                        <p><strong>Type:</strong> ${data.bundle_info.type || 'N/A'}</p>
-                        <p><strong>Total Resources:</strong> ${data.bundle_info.total || 0}</p>
-                        <p><strong>Processed At:</strong> ${new Date().toLocaleString()}</p>
+                    <div class="result-card">
+                        <h4>📦 Bundle Information</h4>
+                        <div class="metric-grid">
+                            <div class="metric-item">
+                                <div class="metric-value">${data.bundle_info.id || 'N/A'}</div>
+                                <div class="metric-label">Bundle ID</div>
+                            </div>
+                            <div class="metric-item">
+                                <div class="metric-value">${data.bundle_info.type || 'N/A'}</div>
+                                <div class="metric-label">Type</div>
+                            </div>
+                            <div class="metric-item">
+                                <div class="metric-value">${data.bundle_info.total || 0}</div>
+                                <div class="metric-label">Total Resources</div>
+                            </div>
+                            <div class="metric-item">
+                                <div class="metric-value">${new Date().toLocaleDateString()}</div>
+                                <div class="metric-label">Processed</div>
+                            </div>
+                        </div>
                     </div>
                 `;
             }
 
-            // Display tables for each entity type
-            if (data.patients && data.patients.length > 0) {
-                html += createTable('Patients', data.patients);
+            // Summary Card
+            if (data.summary) {
+                const riskLevel = data.summary.high_risk ? 'HIGH RISK' : 'Low Risk';
+                const riskColor = data.summary.high_risk ? '#dc3545' : '#28a745';
+                
+                html += `
+                    <div class="result-card">
+                        <h4>📊 Screening Summary</h4>
+                        <div class="metric-grid">
+                            <div class="metric-item">
+                                <div class="metric-value">${data.summary.total_safety_score || 0}</div>
+                                <div class="metric-label">Safety Score</div>
+                            </div>
+                            <div class="metric-item">
+                                <div class="metric-value" style="color: ${riskColor}">${riskLevel}</div>
+                                <div class="metric-label">Risk Level</div>
+                            </div>
+                            <div class="metric-item">
+                                <div class="metric-value">${data.summary.positive_screens || 0}</div>
+                                <div class="metric-label">Positive Screens</div>
+                            </div>
+                            <div class="metric-item">
+                                <div class="metric-value">${data.summary.questions_answered || 0}/12</div>
+                                <div class="metric-label">Questions Answered</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Data Tables
+            if (data.members && data.members.length > 0) {
+                html += createCleanTable('👥 Members', data.members);
             }
             
             if (data.screenings && data.screenings.length > 0) {
-                html += createTable('Screening Sessions', data.screenings);
+                html += createCleanTable('📋 Screening Sessions', data.screenings);
             }
             
             if (data.responses && data.responses.length > 0) {
-                html += createTable('Screening Responses', data.responses);
+                html += createCleanTable('💬 Screening Responses', data.responses);
             }
             
             if (data.organizations && data.organizations.length > 0) {
-                html += createTable('Organizations', data.organizations);
-            }
-
-            if (data.summary) {
-                html += `
-                    <div style="background: #e7f3ff; padding: 15px; border-radius: 5px; margin-top: 20px;">
-                        <h4 style="margin-top: 0;">📈 Processing Summary</h4>
-                        <p><strong>Total Safety Score:</strong> ${data.summary.total_safety_score || 'N/A'}</p>
-                        <p><strong>High Risk (Score ≥11):</strong> ${data.summary.high_risk ? 'Yes' : 'No'}</p>
-                        <p><strong>Positive Screens:</strong> ${data.summary.positive_screens || 0}</p>
-                        <p><strong>Questions Answered:</strong> ${data.summary.questions_answered || 0}/12</p>
-                    </div>
-                `;
+                html += createCleanTable('🏢 Organizations', data.organizations);
             }
 
             resultsContent.innerHTML = html;
         }
 
-        function createTable(title, data) {
+        function createCleanTable(title, data) {
             if (!data || data.length === 0) return '';
             
             const keys = Object.keys(data[0]);
             
             let html = `
-                <div style="margin-bottom: 30px;">
-                    <h4 style="color: #495057; margin-bottom: 15px;">${title}</h4>
-                    <table>
+                <div class="result-card">
+                    <h4>${title}</h4>
+                    <table class="data-table">
                         <thead>
                             <tr>
                                 ${keys.map(key => `<th>${formatColumnName(key)}</th>`).join('')}
@@ -582,21 +704,21 @@
             }
         }
 
-        function addChatMessage(message, sender, patientData = [], summary = {}) {
+        function addChatMessage(message, sender, memberData = [], summary = {}) {
             const chatMessages = document.getElementById('chatMessages');
             const messageDiv = document.createElement('div');
             messageDiv.className = `chat-message ${sender}`;
             
-            let content = `<strong>${sender === 'user' ? 'You' : 'HRSN Chatbot'}:</strong> ${message.replace(/\n/g, '<br>')}`;
+            let content = `<strong>${sender === 'user' ? 'You' : 'HRSN Assistant'}:</strong> ${message.replace(/\n/g, '<br>')}`;
             
-            // Add patient data if available
-            if (patientData && patientData.length > 0) {
+            // Add member data if available
+            if (memberData && memberData.length > 0) {
                 content += '<div class="chat-data">';
-                content += '<strong>Patient Details:</strong><br>';
-                patientData.forEach(patient => {
-                    content += `• <a href="${patient.link}" class="patient-link">${patient.name}</a>`;
-                    if (patient.patient_id) content += ` (ID: ${patient.patient_id})`;
-                    if (patient.safety_score) content += ` - Safety Score: ${patient.safety_score}`;
+                content += '<strong>Member Details:</strong><br>';
+                memberData.forEach(member => {
+                    content += `• <a href="${member.link}" class="member-link">${member.name}</a>`;
+                    if (member.member_id) content += ` (ID: ${member.member_id})`;
+                    if (member.safety_score) content += ` - Safety Score: ${member.safety_score}`;
                     content += '<br>';
                 });
                 content += '</div>';
@@ -606,7 +728,7 @@
             if (summary && Object.keys(summary).length > 0) {
                 content += '<div class="chat-data">';
                 content += '<strong>Summary:</strong><br>';
-                if (summary.total_patients) content += `Total Patients: ${summary.total_patients}<br>`;
+                if (summary.total_members) content += `Total Members: ${summary.total_members}<br>`;
                 if (summary.affected_count !== undefined) content += `Affected: ${summary.affected_count}<br>`;
                 if (summary.percentage !== undefined) content += `Percentage: ${summary.percentage}%<br>`;
                 content += '</div>';
