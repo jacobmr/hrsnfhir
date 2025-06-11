@@ -948,4 +948,5 @@ async def receive_fhir_bundle(bundle: dict, db: Session = Depends(get_db), api_k
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "8000"))
-    uvicorn.run("simple_main:app", host="0.0.0.0", port=port)
+    print(f"Starting server on port {port}")
+    uvicorn.run("simple_main:app", host="0.0.0.0", port=port, log_level="info")
