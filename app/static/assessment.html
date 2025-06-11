@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assessment Details - HRSN FHIR Processor</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f7fa;
+        }
+        .header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+        }
+        .nav-links {
+            margin-top: 20px;
+        }
+        .nav-link {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+        }
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            max-width: 1200px;
+            margin: 0 auto 20px auto;
+        }
+        .section-title {
+            color: #495057;
+            font-size: 1.3em;
+            font-weight: 600;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #28a745;
+            padding-bottom: 10px;
+        }
+        .assessment-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .summary-card {
+            background: #f8fff9;
+            border: 1px solid #28a745;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+        .summary-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #28a745;
+            margin-bottom: 5px;
+        }
+        .summary-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+        .risk-high .summary-value {
+            color: #dc3545;
+        }
+        .member-breadcrumb {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #28a745;
+        }
+        .member-breadcrumb a {
+            color: #28a745;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .member-breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        .responses-section {
+            margin-top: 30px;
+        }
+        .category-section {
+            background: #f8fff9;
+            border: 1px solid #28a745;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .category-title {
+            color: #28a745;
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-transform: capitalize;
+        }
+        .response-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+        .response-item:last-child {
+            margin-bottom: 0;
+        }
+        .question-text {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 8px;
+        }
+        .answer-text {
+            color: #28a745;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+        .response-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 0.85em;
+            color: #666;
+        }
+        .positive-screen {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+        .positive-screen .answer-text {
+            color: #856404;
+            font-weight: 600;
+        }
+        .safety-question {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+        .safety-question .answer-text {
+            color: #721c24;
+            font-weight: 600;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #28a745;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        .back-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        .back-btn:hover {
+            background: #20c997;
+            text-decoration: none;
+            color: white;
+        }
+        .technical-info {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+        .technical-info h4 {
+            margin-top: 0;
+            color: #495057;
+        }
+        .technical-info .tech-item {
+            margin: 5px 0;
+        }
+        .tech-label {
+            font-weight: 600;
+            color: #495057;
+        }
+        .tech-value {
+            color: #666;
+            font-family: monospace;
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .assessment-summary {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .response-meta {
+                flex-direction: column;
+                gap: 5px;
+            }
+            .nav-link {
+                display: block;
+                margin: 5px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📋 Assessment Details</h1>
+        <p>Detailed view of individual HRSN screening assessment</p>
+        <div class="nav-links">
+            <a href="/" class="nav-link">🏠 Home</a>
+            <a href="/static/members.html" class="nav-link">👥 Members</a>
+            <a href="/docs" class="nav-link">📚 API Docs</a>
+            <a href="/health" class="nav-link">💚 Health</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="breadcrumbNav" class="member-breadcrumb" style="display: none;">
+            <span>👤 Member: </span>
+            <a href="#" id="memberLink">Loading...</a>
+            <span> → 📋 Assessment Details</span>
+        </div>
+
+        <a href="javascript:history.back()" class="back-btn">← Back</a>
+        
+        <div id="loadingIndicator" class="loading">
+            <div class="spinner"></div>
+            <p>Loading assessment details...</p>
+        </div>
+
+        <div id="assessmentContent" style="display: none;">
+            <div class="section-title">📊 Assessment Summary</div>
+            <div class="assessment-summary" id="assessmentSummary"></div>
+            
+            <div class="section-title">💬 Screening Responses</div>
+            <div id="responsesContent"></div>
+
+            <div class="technical-info" id="technicalInfo">
+                <h4>🔧 Technical Information</h4>
+                <div id="technicalDetails"></div>
+            </div>
+        </div>
+
+        <div id="errorContent" class="empty-state" style="display: none;">
+            <h3>❌ Assessment Not Found</h3>
+            <p>The requested assessment could not be found.</p>
+            <a href="/static/members.html" class="back-btn">← Back to Members</a>
+        </div>
+    </div>
+
+    <script>
+        let assessmentId = null;
+
+        // Get assessment ID from URL parameters
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            assessmentId = urlParams.get('id');
+            
+            if (!assessmentId) {
+                showError('No assessment ID provided');
+                return;
+            }
+            
+            loadAssessmentDetails();
+        });
+
+        async function loadAssessmentDetails() {
+            try {
+                const response = await fetch(`/assessments/${assessmentId}`, {
+                    headers: {
+                        'Authorization': 'Bearer MookieWilson'
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        showError('Assessment not found');
+                    } else {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return;
+                }
+
+                const data = await response.json();
+                displayAssessmentDetails(data);
+                
+            } catch (error) {
+                console.error('Error loading assessment details:', error);
+                showError(`Error loading assessment: ${error.message}`);
+            }
+        }
+
+        function displayAssessmentDetails(data) {
+            const assessment = data.assessment;
+            const member = data.member;
+            const responses = data.responses;
+
+            // Update page title
+            document.title = `Assessment ${assessment.id.substring(0, 8)} - ${member.name}`;
+
+            // Update breadcrumb
+            const memberLink = document.getElementById('memberLink');
+            memberLink.textContent = member.name || 'Unknown Member';
+            memberLink.href = `/static/member.html?id=${member.id}`;
+            document.getElementById('breadcrumbNav').style.display = 'block';
+
+            // Display assessment summary
+            displayAssessmentSummary(assessment, member);
+
+            // Display responses
+            displayResponses(responses);
+
+            // Display technical info
+            displayTechnicalInfo(assessment);
+
+            // Show content and hide loading
+            document.getElementById('loadingIndicator').style.display = 'none';
+            document.getElementById('assessmentContent').style.display = 'block';
+        }
+
+        function displayAssessmentSummary(assessment, member) {
+            const summary = document.getElementById('assessmentSummary');
+            const date = assessment.screening_date ? 
+                new Date(assessment.screening_date).toLocaleDateString() : 'N/A';
+            const riskLevel = assessment.high_risk ? 'HIGH RISK' : 'Low Risk';
+            const riskClass = assessment.high_risk ? 'risk-high' : '';
+            
+            summary.innerHTML = `
+                <div class="summary-card">
+                    <div class="summary-value">${date}</div>
+                    <div class="summary-label">Assessment Date</div>
+                </div>
+                <div class="summary-card ${riskClass}">
+                    <div class="summary-value">${assessment.total_safety_score || 0}</div>
+                    <div class="summary-label">Safety Score</div>
+                </div>
+                <div class="summary-card ${riskClass}">
+                    <div class="summary-value">${riskLevel}</div>
+                    <div class="summary-label">Risk Level</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-value">${assessment.questions_answered || 0}/12</div>
+                    <div class="summary-label">Questions Answered</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-value">${assessment.positive_screens_count || 0}</div>
+                    <div class="summary-label">Positive Screens</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-value">${assessment.screening_complete ? 'Yes' : 'No'}</div>
+                    <div class="summary-label">Complete</div>
+                </div>
+            `;
+        }
+
+        function displayResponses(responses) {
+            const content = document.getElementById('responsesContent');
+            
+            if (!responses || Object.keys(responses).length === 0) {
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <h3>📋 No Responses Found</h3>
+                        <p>This assessment has no recorded responses.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+
+            // Process each category
+            Object.keys(responses).forEach(category => {
+                const categoryResponses = responses[category];
+                const categoryTitle = category === 'general' ? 'General Questions' : 
+                    category.replace(/-/g, ' ').replace(/sdoh-category-/g, '');
+                
+                html += `
+                    <div class="category-section">
+                        <div class="category-title">${categoryTitle}</div>
+                `;
+
+                categoryResponses.forEach(response => {
+                    let itemClass = 'response-item';
+                    if (response.positive_screen) {
+                        itemClass += ' positive-screen';
+                    }
+                    if (response.is_safety_question) {
+                        itemClass += ' safety-question';
+                    }
+
+                    html += `
+                        <div class="${itemClass}">
+                            <div class="question-text">${response.question_text || 'Question text not available'}</div>
+                            <div class="answer-text">${response.answer_text || 'No answer recorded'}</div>
+                            <div class="response-meta">
+                                <span><span class="tech-label">Code:</span> <span class="tech-value">${response.question_code || 'N/A'}</span></span>
+                                <span><span class="tech-label">Answer Code:</span> <span class="tech-value">${response.answer_code || 'N/A'}</span></span>
+                                ${response.positive_screen ? '<span style="color: #856404; font-weight: 600;">⚠️ Positive Screen</span>' : ''}
+                                ${response.is_safety_question ? '<span style="color: #721c24; font-weight: 600;">🛡️ Safety Question</span>' : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += '</div>';
+            });
+
+            content.innerHTML = html;
+        }
+
+        function displayTechnicalInfo(assessment) {
+            const technical = document.getElementById('technicalDetails');
+            
+            technical.innerHTML = `
+                <div class="tech-item">
+                    <span class="tech-label">Assessment ID:</span> 
+                    <span class="tech-value">${assessment.id}</span>
+                </div>
+                <div class="tech-item">
+                    <span class="tech-label">Bundle ID:</span> 
+                    <span class="tech-value">${assessment.bundle_id || 'N/A'}</span>
+                </div>
+                <div class="tech-item">
+                    <span class="tech-label">FHIR Questionnaire Response ID:</span> 
+                    <span class="tech-value">${assessment.fhir_questionnaire_response_id || 'N/A'}</span>
+                </div>
+                <div class="tech-item">
+                    <span class="tech-label">Consent Given:</span> 
+                    <span class="tech-value">${assessment.consent_given !== null ? (assessment.consent_given ? 'Yes' : 'No') : 'N/A'}</span>
+                </div>
+            `;
+        }
+
+        function showError(message) {
+            document.getElementById('loadingIndicator').style.display = 'none';
+            document.getElementById('assessmentContent').style.display = 'none';
+            document.getElementById('errorContent').style.display = 'block';
+            
+            const errorContent = document.getElementById('errorContent');
+            errorContent.querySelector('p').textContent = message;
+        }
+    </script>
+</body>
+</html>

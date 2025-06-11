@@ -159,6 +159,18 @@
             text-decoration: none;
             color: white;
         }
+        .assessment-link {
+            color: #28a745;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .assessment-link:hover {
+            text-decoration: underline;
+        }
+        .assessments-table tr:hover {
+            background: #f8fff9;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -324,8 +336,12 @@
                 const riskClass = assessment.high_risk ? 'risk-high' : 'risk-low';
                 
                 html += `
-                    <tr>
-                        <td>${date}</td>
+                    <tr style="cursor: pointer;" onclick="viewAssessment('${assessment.id}')">
+                        <td>
+                            <a href="/static/assessment.html?id=${assessment.id}" class="assessment-link">
+                                ${date}
+                            </a>
+                        </td>
                         <td><strong>${assessment.total_safety_score || 0}</strong></td>
                         <td>
                             <span class="risk-badge ${riskClass}">
@@ -353,6 +369,10 @@
             
             const errorContent = document.getElementById('errorContent');
             errorContent.querySelector('p').textContent = message;
+        }
+
+        function viewAssessment(assessmentId) {
+            window.location.href = `/static/assessment.html?id=${assessmentId}`;
         }
     </script>
 </body>

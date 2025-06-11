@@ -648,6 +648,85 @@ async def delete_member(member_id: str, db: Session = Depends(get_db), api_key: 
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
+@app.get("/assessments/{assessment_id}")
+async def get_assessment_detail(assessment_id: str, db: Session = Depends(get_db), api_key: str = Depends(verify_api_key)):
+    """Get detailed assessment information with all responses"""
+    if not db:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        # Get screening session
+        screening = db.query(ScreeningSession).filter(ScreeningSession.id == assessment_id).first()
+        if not screening:
+            raise HTTPException(status_code=404, detail="Assessment not found")
+        
+        # Get member info
+        member = db.query(Member).filter(Member.id == screening.member_id).first()
+        if not member:
+            raise HTTPException(status_code=404, detail="Member not found for this assessment")
+        
+        # Get all responses for this screening
+        responses = db.query(ScreeningResponse).filter(ScreeningResponse.screening_session_id == screening.id).all()
+        
+        # Calculate age
+        age = None
+        if member.date_of_birth:
+            from datetime import date
+            today = date.today()
+            birth_date = member.date_of_birth.date() if hasattr(member.date_of_birth, 'date') else member.date_of_birth
+            age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+        
+        # Organize responses by category
+        responses_by_category = {}
+        for response in responses:
+            category = response.sdoh_category or "general"
+            if category not in responses_by_category:
+                responses_by_category[category] = []
+            
+            responses_by_category[category].append({
+                "question_code": response.question_code,
+                "question_text": response.question_text,
+                "answer_code": response.answer_code,
+                "answer_text": response.answer_text,
+                "positive_screen": response.positive_screen,
+                "is_safety_question": response.question_code in ["95618-5", "95617-7", "95616-9", "95615-1"]
+            })
+        
+        return {
+            "assessment": {
+                "id": str(screening.id),
+                "screening_date": screening.screening_date.isoformat() if screening.screening_date else None,
+                "total_safety_score": screening.total_safety_score,
+                "questions_answered": screening.questions_answered,
+                "positive_screens_count": screening.positive_screens_count,
+                "high_risk": screening.total_safety_score >= 11 if screening.total_safety_score else False,
+                "consent_given": screening.consent_given,
+                "screening_complete": screening.screening_complete,
+                "bundle_id": screening.bundle_id,
+                "fhir_questionnaire_response_id": screening.fhir_questionnaire_response_id
+            },
+            "member": {
+                "id": str(member.id),
+                "name": f"{member.first_name or ''} {member.last_name or ''}".strip(),
+                "first_name": member.first_name,
+                "last_name": member.last_name,
+                "age": age,
+                "date_of_birth": member.date_of_birth.isoformat() if member.date_of_birth else None,
+                "gender": member.gender,
+                "address": member.address,
+                "zip_code": member.zip_code,
+                "phone": member.phone,
+                "mrn": member.mrn
+            },
+            "responses": responses_by_category,
+            "response_count": len(responses)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
 @app.get("/debug/env")
 async def debug_env(api_key: str = Depends(verify_api_key)):
     """Debug endpoint to see environment variables"""
