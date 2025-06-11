@@ -311,7 +311,7 @@
                 <option value="low">Low Risk Only</option>
             </select>
             <button class="refresh-btn" onclick="loadMembers()">🔄 Refresh</button>
-            <button class="refresh-btn" onclick="downloadMembersCSV()" style="background: #6c757d;">📊 Download CSV</button>
+            <button class="refresh-btn" onclick="downloadMembersCSV()" style="background: #6c757d;">📊 Download Screening Data CSV</button>
         </div>
 
         <div class="status-message" id="statusMessage"></div>
@@ -564,7 +564,7 @@
 
         async function downloadMembersCSV() {
             try {
-                showStatus('Preparing CSV download...', 'success');
+                showStatus('Preparing screening data CSV export...', 'success');
                 
                 const response = await fetch('/members/export/csv', {
                     headers: {
@@ -581,17 +581,17 @@
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `members_export_${new Date().toISOString().split('T')[0]}.csv`;
+                a.download = `screening_export_${new Date().toISOString().split('T')[0]}.csv`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
                 
-                showStatus('CSV download completed successfully', 'success');
+                showStatus('Screening data CSV exported successfully - one row per assessment', 'success');
                 
             } catch (error) {
-                console.error('Error downloading CSV:', error);
-                showStatus(`Error downloading CSV: ${error.message}`, 'error');
+                console.error('Error downloading screening CSV:', error);
+                showStatus(`Error downloading screening data: ${error.message}`, 'error');
             }
         }
     </script>

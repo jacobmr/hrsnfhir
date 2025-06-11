@@ -731,24 +731,25 @@ async def get_assessment_detail(assessment_id: str, db: Session = Depends(get_db
 
 @app.get("/members/export/csv")
 async def export_members_csv(db: Session = Depends(get_db), api_key: str = Depends(verify_api_key)):
-    """Export all members and their assessment data to CSV format"""
+    """Export all screening events with member and response data to CSV format (one row per screening)"""
     if not db:
         raise HTTPException(status_code=503, detail="Database not available")
     
     try:
-        # Get all members with their assessment details
-        members = db.query(Member).limit(1000).all()  # Limit to prevent huge exports
+        # Get all screening sessions with related member and response data
+        screenings = db.query(ScreeningSession).join(Member).limit(5000).all()  # Limit to prevent huge exports
         
         # Create CSV in memory
         output = io.StringIO()
         writer = csv.writer(output)
         
-        # Write header
+        # Write header with comprehensive columns
         writer.writerow([
+            # Member Information
             'Member ID',
-            'Name',
-            'First Name', 
-            'Last Name',
+            'Member Name',
+            'First Name',
+            'Last Name', 
             'Age',
             'Date of Birth',
             'Gender',
@@ -758,17 +759,51 @@ async def export_members_csv(db: Session = Depends(get_db), api_key: str = Depen
             'Zip Code',
             'Phone',
             'MRN',
-            'Total Assessments',
-            'Latest Assessment Date',
-            'Latest Safety Score',
+            'Member Created At',
+            
+            # Screening Session Information
+            'Assessment ID',
+            'Assessment Date',
+            'Total Safety Score',
             'High Risk',
-            'Latest Positive Screens',
-            'Latest Questions Answered',
-            'Created At'
+            'Questions Answered',
+            'Positive Screens Count',
+            'Consent Given',
+            'Screening Complete',
+            'Bundle ID',
+            'FHIR Response ID',
+            
+            # HRSN Category Responses
+            'Food Insecurity Responses',
+            'Transportation Issues',
+            'Housing Problems',
+            'Safety Concerns',
+            'Other Responses',
+            
+            # Safety Questions (Questions 9-12)
+            'Q9_Physical_Hurt_Frequency',
+            'Q10_Insult_TalkDown_Frequency', 
+            'Q11_Threaten_Harm_Frequency',
+            'Q12_Scream_Curse_Frequency',
+            
+            # Key HRSN Questions
+            'Food_Worry_12Months',
+            'Food_Didnt_Last_12Months',
+            'Transportation_Barriers',
+            
+            # Response Summary
+            'All_Question_Codes',
+            'All_Answer_Texts',
+            'Positive_Screen_Questions'
         ])
         
-        # Write member data
-        for member in members:
+        # Process each screening session
+        for screening in screenings:
+            member = screening.member if hasattr(screening, 'member') else db.query(Member).filter(Member.id == screening.member_id).first()
+            
+            if not member:
+                continue
+                
             # Calculate age
             age = None
             if member.date_of_birth:
@@ -776,15 +811,66 @@ async def export_members_csv(db: Session = Depends(get_db), api_key: str = Depen
                 birth_date = member.date_of_birth.date() if hasattr(member.date_of_birth, 'date') else member.date_of_birth
                 age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
             
-            # Get latest assessment data
-            latest_screening = db.query(ScreeningSession).filter(
-                ScreeningSession.member_id == member.id
-            ).order_by(ScreeningSession.screening_date.desc()).first()
+            # Get all responses for this screening
+            responses = db.query(ScreeningResponse).filter(ScreeningResponse.screening_session_id == screening.id).all()
             
-            total_assessments = db.query(ScreeningSession).filter(ScreeningSession.member_id == member.id).count()
+            # Organize responses by category and specific questions
+            food_responses = []
+            transport_responses = []
+            housing_responses = []
+            safety_responses = []
+            other_responses = []
+            
+            # Safety questions (9-12) mapping
+            safety_questions = {
+                "95618-5": "",  # Q9 - Physical hurt
+                "95617-7": "",  # Q10 - Insult/talk down  
+                "95616-9": "",  # Q11 - Threaten harm
+                "95615-1": ""   # Q12 - Scream/curse
+            }
+            
+            # Key HRSN questions
+            hrsn_questions = {
+                "88122-7": "",  # Food worry 12 months
+                "88123-5": "",  # Food didn't last 12 months
+                "93030-5": ""   # Transportation barriers
+            }
+            
+            all_question_codes = []
+            all_answer_texts = []
+            positive_screen_questions = []
+            
+            for response in responses:
+                question_code = response.question_code
+                answer_text = response.answer_text or ""
+                question_text = response.question_text or ""
+                
+                all_question_codes.append(question_code or "")
+                all_answer_texts.append(answer_text)
+                
+                if response.positive_screen:
+                    positive_screen_questions.append(f"{question_code}: {answer_text}")
+                
+                # Categorize responses
+                if question_code in ["88122-7", "88123-5"]:  # Food questions
+                    food_responses.append(f"{question_text}: {answer_text}")
+                elif question_code in ["93030-5"]:  # Transportation
+                    transport_responses.append(f"{question_text}: {answer_text}")
+                elif question_code in ["71802-3", "96778-6"]:  # Housing questions
+                    housing_responses.append(f"{question_text}: {answer_text}")
+                elif question_code in safety_questions:  # Safety questions
+                    safety_responses.append(f"{question_text}: {answer_text}")
+                    safety_questions[question_code] = answer_text
+                else:
+                    other_responses.append(f"{question_text}: {answer_text}")
+                
+                # Capture specific HRSN questions
+                if question_code in hrsn_questions:
+                    hrsn_questions[question_code] = answer_text
             
             # Prepare row data
             row = [
+                # Member Information
                 str(member.id),
                 f"{member.first_name or ''} {member.last_name or ''}".strip() or 'Unknown',
                 member.first_name or '',
@@ -798,13 +884,42 @@ async def export_members_csv(db: Session = Depends(get_db), api_key: str = Depen
                 member.zip_code or '',
                 member.phone or '',
                 member.mrn or '',
-                total_assessments,
-                latest_screening.screening_date.isoformat() if latest_screening and latest_screening.screening_date else '',
-                latest_screening.total_safety_score if latest_screening else '',
-                'Yes' if latest_screening and latest_screening.total_safety_score and latest_screening.total_safety_score >= 11 else 'No',
-                latest_screening.positive_screens_count if latest_screening else '',
-                latest_screening.questions_answered if latest_screening else '',
-                member.created_at.isoformat() if member.created_at else ''
+                member.created_at.isoformat() if member.created_at else '',
+                
+                # Screening Session Information
+                str(screening.id),
+                screening.screening_date.isoformat() if screening.screening_date else '',
+                screening.total_safety_score or '',
+                'Yes' if screening.total_safety_score and screening.total_safety_score >= 11 else 'No',
+                screening.questions_answered or '',
+                screening.positive_screens_count or '',
+                'Yes' if screening.consent_given else 'No' if screening.consent_given is not None else '',
+                'Yes' if screening.screening_complete else 'No' if screening.screening_complete is not None else '',
+                screening.bundle_id or '',
+                screening.fhir_questionnaire_response_id or '',
+                
+                # HRSN Category Responses
+                ' | '.join(food_responses) if food_responses else '',
+                ' | '.join(transport_responses) if transport_responses else '',
+                ' | '.join(housing_responses) if housing_responses else '',
+                ' | '.join(safety_responses) if safety_responses else '',
+                ' | '.join(other_responses) if other_responses else '',
+                
+                # Safety Questions (9-12)
+                safety_questions["95618-5"],  # Q9
+                safety_questions["95617-7"],  # Q10
+                safety_questions["95616-9"],  # Q11
+                safety_questions["95615-1"],  # Q12
+                
+                # Key HRSN Questions
+                hrsn_questions["88122-7"],  # Food worry
+                hrsn_questions["88123-5"],  # Food didn't last
+                hrsn_questions["93030-5"],  # Transportation
+                
+                # Response Summary
+                ' | '.join(all_question_codes) if all_question_codes else '',
+                ' | '.join(all_answer_texts) if all_answer_texts else '',
+                ' | '.join(positive_screen_questions) if positive_screen_questions else ''
             ]
             
             writer.writerow(row)
@@ -814,7 +929,7 @@ async def export_members_csv(db: Session = Depends(get_db), api_key: str = Depen
         response = StreamingResponse(
             io.BytesIO(output.getvalue().encode('utf-8')), 
             media_type="text/csv",
-            headers={"Content-Disposition": f"attachment; filename=members_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"}
+            headers={"Content-Disposition": f"attachment; filename=screening_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"}
         )
         
         return response
