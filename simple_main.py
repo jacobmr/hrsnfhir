@@ -163,8 +163,10 @@ async def health_check():
         "environment": {
             "port": os.environ.get("PORT", "8000"),
             "database_url_set": bool(db_url),
+            "database_url_preview": db_url[:100] + "..." if db_url and len(db_url) > 100 else db_url,
             "default_api_key": DEFAULT_API_KEY,
-            "tables_created": engine is not None
+            "tables_created": engine is not None,
+            "all_env_vars": [k for k in os.environ.keys() if "DATA" in k.upper() or "POST" in k.upper()]
         }
     }
 
